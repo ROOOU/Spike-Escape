@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spike Escape</title>
+  </head>
+  <body>
+    <div id="app">
+      <div class="page-head">
+        <p class="eyebrow">Endless Prototype</p>
+        <h1>Spike Escape</h1>
+        <p class="subtitle">
+          Run forward, retreat when you must, and never let the wall touch you.
+        </p>
+      </div>
+
+      <div id="game-shell">
+        <div id="game-root" aria-label="Spike Escape game canvas"></div>
+
+        <div id="touch-controls" aria-label="Touch controls">
+          <div class="touch-cluster">
+            <button class="touch-button" data-action="left" type="button">Left</button>
+            <button class="touch-button" data-action="right" type="button">Right</button>
+          </div>
+          <div class="touch-cluster">
+            <button class="touch-button jump" data-action="jump" type="button">Jump</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

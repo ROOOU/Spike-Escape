@@ -46,4 +46,15 @@ describe("regression scan", () => {
 
     expect(failures).toEqual([]);
   });
+
+  it("does not scale the physics player sprite during gameplay", () => {
+    const controller = fs.readFileSync(
+      path.join(ROOT, "src/systems/PlayerController.ts"),
+      "utf8"
+    );
+
+    expect(controller).not.toContain(".setScale(");
+    expect(controller).not.toMatch(/\bscaleX\s*:/);
+    expect(controller).not.toMatch(/\bscaleY\s*:/);
+  });
 });

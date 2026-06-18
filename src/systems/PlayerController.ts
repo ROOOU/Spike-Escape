@@ -5,11 +5,8 @@ import type { InputSnapshot } from "./inputModel";
 export class PlayerController {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
 
-  private readonly baseScaleX: number;
-  private readonly baseScaleY: number;
   private lastGroundedAtMs = Number.NEGATIVE_INFINITY;
   private jumpBufferedUntilMs = Number.NEGATIVE_INFINITY;
-  private wasGrounded = false;
 
   constructor(scene: Phaser.Scene) {
     this.sprite = scene.physics.add.sprite(
@@ -18,17 +15,15 @@ export class PlayerController {
       "reference-player"
     );
     this.sprite.setDisplaySize(PLAYER_CONFIG.visualWidth, PLAYER_CONFIG.visualHeight);
-    this.baseScaleX = this.sprite.scaleX;
-    this.baseScaleY = this.sprite.scaleY;
     this.sprite.setDepth(12);
     this.sprite.setCollideWorldBounds(false);
 
     const body = this.body;
-    const hitboxSourceWidth = PLAYER_CONFIG.hitboxWidth / this.baseScaleX;
-    const hitboxSourceHeight = PLAYER_CONFIG.hitboxHeight / this.baseScaleY;
+    const hitboxSourceWidth = PLAYER_CONFIG.hitboxWidth / this.sprite.scaleX;
+    const hitboxSourceHeight = PLAYER_CONFIG.hitboxHeight / this.sprite.scaleY;
     const hitboxSourceOffsetX =
       (this.sprite.frame.width - hitboxSourceWidth) / 2;
-    const hitboxSourceOffsetY = PLAYER_CONFIG.hitboxOffsetY / this.baseScaleY;
+    const hitboxSourceOffsetY = PLAYER_CONFIG.hitboxOffsetY / this.sprite.scaleY;
 
     body.setGravityY(PLAYER_CONFIG.gravity);
     body.setMaxVelocity(
@@ -74,7 +69,7 @@ export class PlayerController {
       this.body.setVelocityY(PLAYER_CONFIG.maxFallSpeed);
     }
 
-    this.updatePresentation(grounded);
+    this.updatePresentation();
   }
 
   getLeftX(): number {
@@ -93,32 +88,12 @@ export class PlayerController {
     return PLAYER_CONFIG.baseRunSpeed;
   }
 
-  private updatePresentation(grounded: boolean): void {
-    if (!grounded) {
-      this.setPresentationScale(1.08, 0.92);
-    } else if (!this.wasGrounded) {
-      this.setPresentationScale(0.94, 1.08);
-      this.sprite.scene.tweens.add({
-        targets: this.sprite,
-        scaleX: this.baseScaleX,
-        scaleY: this.baseScaleY,
-        duration: 120
-      });
-    } else {
-      this.setPresentationScale(1, 1);
-    }
-
+  private updatePresentation(): void {
     if (this.body.velocity.x < PLAYER_CONFIG.baseRunSpeed - 10) {
       this.sprite.setFlipX(true);
     } else if (this.body.velocity.x > PLAYER_CONFIG.baseRunSpeed + 10) {
       this.sprite.setFlipX(false);
     }
-
-    this.wasGrounded = grounded;
-  }
-
-  private setPresentationScale(scaleX: number, scaleY: number): void {
-    this.sprite.setScale(this.baseScaleX * scaleX, this.baseScaleY * scaleY);
   }
 
   private isGrounded(): boolean {

@@ -1,8 +1,9 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import { SEGMENT_CATALOG, START_SEGMENT } from "../config/segments";
 import { WORLD_CONFIG } from "../config/gameConfig";
+import { pickPlannedSegment } from "../utils/segmentPlanner";
 import { assertValidSegments } from "../utils/segmentValidator";
-import type { PressureLevel, SegmentDefinition } from "../types/segments";
+import type { SegmentDefinition } from "../types/segments";
 import { CoinManager } from "./CoinManager";
 import { HazardManager } from "./HazardManager";
 
@@ -11,6 +12,7 @@ interface SpawnedSegment {
   startX: number;
   endX: number;
   platforms: Phaser.Physics.Arcade.Sprite[];
+  decor: Phaser.GameObjects.Image[];
 }
 
 export class SegmentManager {
@@ -20,6 +22,7 @@ export class SegmentManager {
   private readonly coinManager: CoinManager;
   private readonly hazardManager: HazardManager;
   private spawnCursorX = 0;
+  private generatedCount = 0;
 
   constructor(private readonly scene: Phaser.Scene) {
     assertValidSegments(SEGMENT_CATALOG);
@@ -59,6 +62,7 @@ export class SegmentManager {
       const segment = this.segments.shift();
       if (segment) {
         segment.platforms.forEach((platform) => platform.destroy());
+        segment.decor.forEach((item) => item.destroy());
         this.coinManager.destroySegment(segment.definition.id + ":" + segment.startX);
         this.hazardManager.destroySegment(segment.definition.id + ":" + segment.startX);
       }
@@ -79,6 +83,7 @@ export class SegmentManager {
     const definition = this.pickNextSegment(progressAnchorX, elapsedMs);
     this.spawnSegment(this.spawnCursorX, definition);
     this.spawnCursorX += definition.length;
+    this.generatedCount += 1;
   }
 
   private spawnSegment(startX: number, definition: SegmentDefinition): void {
@@ -96,6 +101,7 @@ export class SegmentManager {
       sprite.setData("segmentId", segmentId);
       return sprite;
     });
+    const decor = this.spawnDecor(startX, definition);
 
     this.coinManager.spawn(segmentId, startX, definition.coins);
     this.hazardManager.spawn(segmentId, startX, definition.hazards);
@@ -104,53 +110,58 @@ export class SegmentManager {
       definition,
       startX,
       endX: startX + definition.length,
-      platforms
+      platforms,
+      decor
     });
   }
 
   private pickNextSegment(progressAnchorX: number, elapsedMs: number): SegmentDefinition {
-    const difficultyCap = Math.min(
-      3,
-      Math.max(1, 1 + Math.floor(progressAnchorX / 2400), 1 + Math.floor(elapsedMs / 20000))
-    );
-    const recent = this.segments.slice(-2).map((segment) => segment.definition);
-    const last = recent[recent.length - 1];
-    const lastTwoHighPressure = recent.length === 2 && recent.every((segment) => segment.pressure === "high");
-
-    let candidates = SEGMENT_CATALOG.filter((segment) => segment.difficulty <= difficultyCap);
-
-    if (lastTwoHighPressure) {
-      candidates = candidates.filter((segment) => segment.pressure === "recovery");
-    } else if (last) {
-      candidates = candidates.filter((segment) => segment.id !== last.id);
-      if (last.pressure === "high") {
-        const coolerSegments = candidates.filter((segment) =>
-          this.isCoolingPressure(segment.pressure)
-        );
-        if (coolerSegments.length > 0) {
-          candidates = coolerSegments;
-        }
-      }
-    }
-
-    if (candidates.length === 0) {
-      candidates = SEGMENT_CATALOG.filter((segment) => segment.difficulty <= difficultyCap);
-    }
-
-    const totalWeight = candidates.reduce((sum, segment) => sum + segment.weight, 0);
-    let roll = Math.random() * totalWeight;
-
-    for (const candidate of candidates) {
-      roll -= candidate.weight;
-      if (roll <= 0) {
-        return candidate;
-      }
-    }
-
-    return candidates[candidates.length - 1];
+    return pickPlannedSegment({
+      generatedCount: this.generatedCount,
+      progressAnchorX,
+      elapsedMs,
+      recent: this.segments.slice(-2).map((segment) => segment.definition)
+    });
   }
 
-  private isCoolingPressure(pressure: PressureLevel): boolean {
-    return pressure === "low" || pressure === "recovery";
+  private spawnDecor(startX: number, definition: SegmentDefinition): Phaser.GameObjects.Image[] {
+    const density = definition.metadata.decorDensity ?? 0.45;
+    const decor: Phaser.GameObjects.Image[] = [];
+    const mainPlatforms = definition.platforms.filter((platform) => platform.mainPath);
+
+    for (const [index, platform] of mainPlatforms.entries()) {
+      if (platform.width < 72) {
+        continue;
+      }
+
+      const shouldPlace =
+        index === 0 ||
+        platform.width >= 180 ||
+        density >= 0.65 ||
+        ((startX + platform.x + index * 17) % 3 === 0);
+
+      if (!shouldPlace) {
+        continue;
+      }
+
+      const localX = Phaser.Math.Clamp(
+        platform.x + Math.max(24, Math.floor(platform.width * 0.28)),
+        platform.x + 18,
+        platform.x + platform.width - 18
+      );
+
+      const texture = (startX + platform.x + index) % 2 === 0 ? "flower" : "grass-tuft";
+      const sprite = this.scene.add
+        .image(startX + localX, platform.y - 2, texture)
+        .setOrigin(0.5, 1)
+        .setDepth(9);
+
+      const scaleBase = texture === "flower" ? 0.9 : 0.8;
+      const variation = ((startX + platform.width + index * 29) % 5) * 0.04;
+      sprite.setScale(scaleBase + variation);
+      decor.push(sprite);
+    }
+
+    return decor;
   }
 }

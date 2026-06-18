@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import type { CoinDefinition, CoinType } from "../types/segments";
 
 export class CoinManager {
@@ -23,6 +23,7 @@ export class CoinManager {
       );
 
       sprite.setDepth(10);
+      sprite.setScale(coin.type === "risk" ? 0.95 : 1);
       sprite.setImmovable(true);
       sprite.body.setAllowGravity(false);
       sprite.setData("coinType", coin.type);

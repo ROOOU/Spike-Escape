@@ -29,12 +29,33 @@ export interface TouchBinder {
   read(): RawInputState;
 }
 
+export interface KeyboardEventLike {
+  code?: string;
+  key?: string;
+}
+
 const EMPTY_INPUT: RawInputState = {
   left: false,
   right: false,
   jump: false,
   restart: false,
   usingTouch: false
+};
+
+const KEYBOARD_ACTION_BY_CODE: Record<string, InputAction> = {
+  ArrowLeft: "left",
+  KeyA: "left",
+  ArrowRight: "right",
+  KeyD: "right",
+  ArrowUp: "jump",
+  KeyW: "jump",
+  Space: "jump",
+  KeyR: "restart"
+};
+
+const KEYBOARD_ACTION_BY_KEY: Record<string, InputAction> = {
+  " ": "jump",
+  Spacebar: "jump"
 };
 
 function anyDown(keys: KeyLike[]): boolean {
@@ -54,6 +75,20 @@ export function readKeyboardState(bindings: KeyboardBindings): RawInputState {
     restart: anyDown(bindings.restart),
     usingTouch: false
   };
+}
+
+export function actionFromKeyboardEventLike(
+  event: KeyboardEventLike
+): InputAction | undefined {
+  if (event.code && KEYBOARD_ACTION_BY_CODE[event.code]) {
+    return KEYBOARD_ACTION_BY_CODE[event.code];
+  }
+
+  if (event.key && KEYBOARD_ACTION_BY_KEY[event.key]) {
+    return KEYBOARD_ACTION_BY_KEY[event.key];
+  }
+
+  return undefined;
 }
 
 export function mergeInputStates(...states: RawInputState[]): RawInputState {
@@ -101,6 +136,12 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
     jump: false,
     restart: false
   };
+  const queuedState: Record<InputAction, boolean> = {
+    left: false,
+    right: false,
+    jump: false,
+    restart: false
+  };
   const activePointers = new Map<HTMLInputElement | HTMLButtonElement, Set<number>>();
   const removers: Array<() => void> = [];
 
@@ -122,6 +163,7 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
     const onPress = (event: Event): void => {
       event.preventDefault();
       pointerSet.add(pointerIdOf(event));
+      queuedState[action] = true;
       refresh();
     };
 
@@ -148,13 +190,22 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
       removers.forEach((remove) => remove());
     },
     read() {
-      const usingTouch = Object.values(activeState).some(Boolean);
-      return {
-        left: activeState.left,
-        right: activeState.right,
-        jump: activeState.jump,
-        restart: activeState.restart,
+      const usingTouch =
+        Object.values(activeState).some(Boolean) ||
+        Object.values(queuedState).some(Boolean);
+      const state = {
+        left: activeState.left || queuedState.left,
+        right: activeState.right || queuedState.right,
+        jump: activeState.jump || queuedState.jump,
+        restart: activeState.restart || queuedState.restart,
         usingTouch
+      };
+      queuedState.left = false;
+      queuedState.right = false;
+      queuedState.jump = false;
+      queuedState.restart = false;
+      return {
+        ...state
       };
     }
   };

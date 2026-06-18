@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import * as Phaser from "phaser";
 import type { HazardDefinition } from "../types/segments";
 
 export class HazardManager {
@@ -21,6 +21,7 @@ export class HazardManager {
       sprite.setDepth(8);
       sprite.setDisplaySize(hazard.width, hazard.height);
       sprite.refreshBody();
+      sprite.setScale(1, 1);
       sprite.setData("segmentId", segmentId);
       return sprite;
     });
@@ -35,7 +36,7 @@ export class HazardManager {
     onHit: (reason: string) => void
   ): void {
     this.scene.physics.add.overlap(player, this.group, () => {
-      onHit("Hit a spike");
+      onHit("Hit a cactus patch");
     });
   }
 

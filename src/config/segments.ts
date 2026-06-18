@@ -99,8 +99,8 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       introOrder: 2
     },
     platforms: [
-      { x: 0, y: ground, width: 208, height: 32, mainPath: true },
-      { x: 336, y: ledge, width: 128, height: 32, mainPath: true },
+      { x: 0, y: ground, width: 224, height: 32, mainPath: true },
+      { x: 320, y: ledge, width: 144, height: 32, mainPath: true },
       { x: 464, y: ground, width: 208, height: 32, mainPath: true }
     ],
     hazards: [],
@@ -127,13 +127,13 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
     },
     platforms: [
       { x: 0, y: ground, width: 168, height: 32, mainPath: true },
-      { x: 264, y: lip, width: 128, height: 32, mainPath: true },
+      { x: 264, y: lip, width: 160, height: 32, mainPath: true },
       { x: 488, y: ground, width: 248, height: 32, mainPath: true }
     ],
     hazards: [],
     coins: [
       { x: 216, y: 336, type: "normal" },
-      { x: 440, y: 328, type: "risk" }
+      { x: 456, y: 328, type: "risk" }
     ]
   },
   {
@@ -178,8 +178,8 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       decorDensity: 0.35
     },
     platforms: [
-      { x: 0, y: ground, width: 192, height: 32, mainPath: true },
-      { x: 320, y: ground - 80, width: 160, height: 32, mainPath: true },
+      { x: 0, y: ground, width: 224, height: 32, mainPath: true },
+      { x: 304, y: ground - 64, width: 176, height: 32, mainPath: true },
       { x: 560, y: ground, width: 208, height: 32, mainPath: true }
     ],
     hazards: [
@@ -205,9 +205,9 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       decorDensity: 0.25
     },
     platforms: [
-      { x: 0, y: ground, width: 208, height: 32, mainPath: true },
-      { x: 336, y: ledge, width: 120, height: 32, mainPath: true },
-      { x: 536, y: ground, width: 200, height: 32, mainPath: true }
+      { x: 0, y: ground, width: 240, height: 32, mainPath: true },
+      { x: 336, y: ledge, width: 128, height: 32, mainPath: true },
+      { x: 512, y: ground, width: 224, height: 32, mainPath: true }
     ],
     hazards: [],
     coins: [
@@ -229,9 +229,9 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       decorDensity: 0.3
     },
     platforms: [
-      { x: 0, y: ground, width: 216, height: 32, mainPath: true },
-      { x: 344, y: ground - 64, width: 96, height: 32, mainPath: true },
-      { x: 520, y: ground, width: 248, height: 32, mainPath: true }
+      { x: 0, y: ground, width: 240, height: 32, mainPath: true },
+      { x: 336, y: ground - 64, width: 112, height: 32, mainPath: true },
+      { x: 512, y: ground, width: 256, height: 32, mainPath: true }
     ],
     hazards: [
       { x: 272, y: ground - 24, width: 72, height: 24, kind: "spike" }

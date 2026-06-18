@@ -1,7 +1,7 @@
 import { PLAYER_CONFIG } from "../config/playerConfig";
 import type { PlatformDefinition, SegmentDefinition } from "../types/segments";
 
-const HORIZONTAL_REACH_SAFETY = 0.75;
+const PRACTICAL_JUMP_SPEED_FACTOR = 0.65;
 const MAX_RISE_SAFETY = 0.9;
 const LANDING_MARGIN = 16;
 const MAX_EARLY_TAKEOFF = 72;
@@ -10,6 +10,13 @@ const EARLY_TAKEOFF_PLATFORM_RATIO = 0.4;
 export interface SegmentValidationReport {
   segmentId: string;
   errors: string[];
+}
+
+interface TransitionContext {
+  current: PlatformDefinition;
+  next: PlatformDefinition;
+  errors: string[];
+  label: string;
 }
 
 function mainPathPlatforms(segment: SegmentDefinition): PlatformDefinition[] {
@@ -54,6 +61,74 @@ function riskCoinOverMainPathGap(mainPath: PlatformDefinition[], x: number): boo
   return false;
 }
 
+function validatePlatformTransition({
+  current,
+  next,
+  errors,
+  label
+}: TransitionContext): void {
+  const theoreticalMaxJumpRise =
+    (PLAYER_CONFIG.jumpVelocity * PLAYER_CONFIG.jumpVelocity) /
+    (2 * PLAYER_CONFIG.gravity);
+  const maxSafeJumpRise = theoreticalMaxJumpRise * MAX_RISE_SAFETY;
+  const landingEdgeBuffer = PLAYER_CONFIG.hitboxWidth + LANDING_MARGIN;
+  const practicalJumpSpeed =
+    PLAYER_CONFIG.boostRunSpeed * PRACTICAL_JUMP_SPEED_FACTOR;
+
+  const gap = next.x - (current.x + current.width);
+  const dy = next.y - current.y;
+  const rise = dy < 0 ? Math.abs(dy) : 0;
+
+  if (gap <= 0 && rise > 0) {
+    errors.push(
+      `${label}: Adjacent upward step ${rise} between ${current.x} and ${next.x} can block Arcade movement.`
+    );
+  }
+
+  if (rise > maxSafeJumpRise) {
+    errors.push(
+      `${label}: Main path rises ${rise} between ${current.x} and ${next.x}, above safe rise ${maxSafeJumpRise.toFixed(1)}.`
+    );
+  }
+
+  const flightTime = computeFlightTime(dy);
+  if (flightTime === null) {
+    errors.push(`${label}: Unreachable vertical transition between ${current.x} and ${next.x}.`);
+    return;
+  }
+
+  if (gap > 0) {
+    const requiredReach = gap + landingEdgeBuffer;
+    const safeReach = practicalJumpSpeed * flightTime;
+    if (requiredReach > safeReach) {
+      errors.push(
+        `${label}: Gap ${gap} plus landing buffer ${landingEdgeBuffer} exceeds practical reach ${safeReach.toFixed(1)}.`
+      );
+    }
+
+    if (dy <= 0) {
+      const fullBoostReach = PLAYER_CONFIG.boostRunSpeed * flightTime;
+      const landingWindowEnd =
+        gap + next.width - PLAYER_CONFIG.hitboxWidth - LANDING_MARGIN;
+      const earlyTakeoffAllowance = Math.min(
+        current.width * EARLY_TAKEOFF_PLATFORM_RATIO,
+        MAX_EARLY_TAKEOFF
+      );
+      if (fullBoostReach - earlyTakeoffAllowance > landingWindowEnd) {
+        errors.push(
+          `${label}: Landing window ${landingWindowEnd.toFixed(1)} is too short for full-speed jump reach ${fullBoostReach.toFixed(1)}.`
+        );
+      }
+    }
+  }
+
+  if (next.width < PLAYER_CONFIG.minLandingWidth) {
+    errors.push(
+      `${label}: Landing width ${next.width} is below ${PLAYER_CONFIG.minLandingWidth}.`
+    );
+  }
+}
+
 export function validateSegment(segment: SegmentDefinition): SegmentValidationReport {
   const errors: string[] = [];
   const mainPath = mainPathPlatforms(segment);
@@ -81,65 +156,13 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
     errors.push("Segment geometry extends beyond segment length.");
   }
 
-  const theoreticalMaxJumpRise =
-    (PLAYER_CONFIG.jumpVelocity * PLAYER_CONFIG.jumpVelocity) /
-    (2 * PLAYER_CONFIG.gravity);
-  const maxSafeJumpRise = theoreticalMaxJumpRise * MAX_RISE_SAFETY;
-  const landingEdgeBuffer = PLAYER_CONFIG.hitboxWidth;
-
   for (let index = 0; index < mainPath.length - 1; index += 1) {
-    const current = mainPath[index];
-    const next = mainPath[index + 1];
-    const gap = next.x - (current.x + current.width);
-    const dy = next.y - current.y;
-    const rise = dy < 0 ? Math.abs(dy) : 0;
-
-    if (gap <= 0 && rise > 0) {
-      errors.push(
-        `Adjacent upward step ${rise} between ${current.x} and ${next.x} can block Arcade movement.`
-      );
-    }
-
-    if (rise > maxSafeJumpRise) {
-      errors.push(
-        `Main path rises ${rise} between ${current.x} and ${next.x}, above safe rise ${maxSafeJumpRise.toFixed(1)}.`
-      );
-    }
-
-    const flightTime = computeFlightTime(dy);
-    if (flightTime === null) {
-      errors.push(`Unreachable vertical transition between ${current.x} and ${next.x}.`);
-      continue;
-    }
-
-    if (gap > 0) {
-      const requiredReach = gap + landingEdgeBuffer;
-      const safeReach =
-        PLAYER_CONFIG.boostRunSpeed * flightTime * HORIZONTAL_REACH_SAFETY;
-      if (requiredReach > safeReach) {
-        errors.push(
-          `Gap ${gap} plus landing buffer ${landingEdgeBuffer} exceeds safe reach ${safeReach.toFixed(1)}.`
-        );
-      }
-
-      if (dy <= 0) {
-        const fullBoostReach = PLAYER_CONFIG.boostRunSpeed * flightTime;
-        const landingWindowEnd = gap + next.width - LANDING_MARGIN;
-        const earlyTakeoffAllowance = Math.min(
-          current.width * EARLY_TAKEOFF_PLATFORM_RATIO,
-          MAX_EARLY_TAKEOFF
-        );
-        if (fullBoostReach - earlyTakeoffAllowance > landingWindowEnd) {
-          errors.push(
-            `Landing window ${landingWindowEnd.toFixed(1)} is too short for full-speed jump reach ${fullBoostReach.toFixed(1)}.`
-          );
-        }
-      }
-    }
-
-    if (next.width < PLAYER_CONFIG.minLandingWidth) {
-      errors.push(`Landing width ${next.width} is below ${PLAYER_CONFIG.minLandingWidth}.`);
-    }
+    validatePlatformTransition({
+      current: mainPath[index],
+      next: mainPath[index + 1],
+      errors,
+      label: "Main path"
+    });
   }
 
   if (segment.allowWallSprint && segment.metadata.consecutivePits) {
@@ -203,10 +226,48 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
   };
 }
 
+export function validateSegmentTransition(
+  currentSegment: SegmentDefinition,
+  nextSegment: SegmentDefinition
+): SegmentValidationReport {
+  const errors: string[] = [];
+  const currentPath = mainPathPlatforms(currentSegment);
+  const nextPath = mainPathPlatforms(nextSegment);
+  const current = currentPath[currentPath.length - 1];
+  const next = nextPath[0];
+
+  if (current && next) {
+    validatePlatformTransition({
+      current,
+      next: {
+        ...next,
+        x: currentSegment.length + next.x
+      },
+      errors,
+      label: `${currentSegment.id}->${nextSegment.id}`
+    });
+  }
+
+  return {
+    segmentId: `${currentSegment.id}->${nextSegment.id}`,
+    errors
+  };
+}
+
 export function assertValidSegments(segments: SegmentDefinition[]): void {
-  const reports = segments
-    .map(validateSegment)
-    .filter((report) => report.errors.length > 0);
+  const reports = segments.flatMap((segment) => {
+    const segmentReport = validateSegment(segment);
+    return segmentReport.errors.length > 0 ? [segmentReport] : [];
+  });
+
+  for (const currentSegment of segments) {
+    for (const nextSegment of segments) {
+      const transitionReport = validateSegmentTransition(currentSegment, nextSegment);
+      if (transitionReport.errors.length > 0) {
+        reports.push(transitionReport);
+      }
+    }
+  }
 
   if (reports.length === 0) {
     return;

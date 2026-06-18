@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { SEGMENT_CATALOG, START_SEGMENT } from "../src/config/segments";
 import type { SegmentDefinition } from "../src/types/segments";
-import { assertValidSegments, validateSegment } from "../src/utils/segmentValidator";
+import {
+  assertValidSegments,
+  validateSegment,
+  validateSegmentTransition
+} from "../src/utils/segmentValidator";
 
 const validSegment: SegmentDefinition = {
   id: "valid",
@@ -53,7 +57,21 @@ describe("validateSegment", () => {
       ]
     };
 
-    expect(validateSegment(invalid).errors.join(" ")).toMatch(/landing buffer/);
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/practical reach/);
+  });
+
+  it("rejects upward gaps that only pass at theoretical full speed", () => {
+    const invalid = {
+      ...validSegment,
+      id: "theoretical-upward-gap",
+      platforms: [
+        { x: 0, y: 420, width: 208, height: 32, mainPath: true },
+        { x: 336, y: 372, width: 128, height: 32, mainPath: true },
+        { x: 464, y: 420, width: 176, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/practical reach/);
   });
 
   it("rejects jumps with too little landing window after the gap", () => {
@@ -120,6 +138,28 @@ describe("validateSegment", () => {
     };
 
     expect(validateSegment(invalid).errors.join(" ")).toMatch(/Wall sprint/);
+  });
+
+  it("rejects unsafe vertical steps between segment boundaries", () => {
+    const first = {
+      ...validSegment,
+      id: "boundary-low",
+      platforms: [
+        { x: 0, y: 420, width: 640, height: 32, mainPath: true }
+      ]
+    };
+    const second = {
+      ...validSegment,
+      id: "boundary-high",
+      platforms: [
+        { x: 0, y: 372, width: 640, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegmentTransition(first, second).errors.join(" ")).toMatch(
+      /Adjacent upward step/
+    );
+    expect(() => assertValidSegments([first, second])).toThrow(/boundary-low->boundary-high/);
   });
 
   it("rejects intro segments with hazards or risk coins", () => {

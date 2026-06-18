@@ -81,6 +81,7 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 - Falling below the kill line ends the run.
 - Pit width must remain within the validated jump envelope.
 - Landing platforms after pits must be wide enough for a practical landing window.
+- Authored pits must be playable below theoretical full speed; validator rules should reject jumps that only work from perfect edge takeoff or perfect max-speed timing.
 
 ### Spikes
 

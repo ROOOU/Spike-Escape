@@ -373,11 +373,11 @@ export class GameScene extends Phaser.Scene {
     const compact = this.scale.width < 500;
     if (compact) {
       this.addTutorialCard(16, VIEWPORT.height - 94, 192, "tutorial-left-right", "MOVE", "LEFT / RIGHT", 0xffd76c);
-      this.addTutorialCard(240, VIEWPORT.height - 94, 192, "tutorial-jump", "JUMP", "SPACE", 0x9de7ff);
+      this.addTutorialCard(240, VIEWPORT.height - 94, 192, "tutorial-jump", "JUMP", "HOLD + SPACE", 0x9de7ff);
       this.addTutorialCard(464, VIEWPORT.height - 94, 192, "tutorial-hazard", "DANGER", "SPIKES / WALL", 0xff9d82);
     } else {
       this.addTutorialCard(20, VIEWPORT.height - 68, 296, "tutorial-left-right", "MOVE", "LEFT / RIGHT", 0xffd76c);
-      this.addTutorialCard(332, VIEWPORT.height - 68, 296, "tutorial-jump", "JUMP", "SPACE", 0x9de7ff);
+      this.addTutorialCard(332, VIEWPORT.height - 68, 296, "tutorial-jump", "JUMP", "HOLD + SPACE", 0x9de7ff);
       this.addTutorialCard(644, VIEWPORT.height - 68, 296, "tutorial-hazard", "DANGER", "SPIKES / WALL", 0xff9d82);
     }
   }
@@ -405,7 +405,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const controls = this.add
-      .text(0, 48, "A/D or arrows · Space/W/Up · touch buttons", {
+      .text(0, 48, "Hold left/right, then jump with Space/W/Up", {
         align: "center",
         fontFamily: "Trebuchet MS, Avenir Next, sans-serif",
         fontSize: "14px",

@@ -1,6 +1,12 @@
 import { PLAYER_CONFIG } from "../config/playerConfig";
 import type { PlatformDefinition, SegmentDefinition } from "../types/segments";
 
+const HORIZONTAL_REACH_SAFETY = 0.75;
+const MAX_RISE_SAFETY = 0.9;
+const LANDING_MARGIN = 16;
+const MAX_EARLY_TAKEOFF = 72;
+const EARLY_TAKEOFF_PLATFORM_RATIO = 0.4;
+
 export interface SegmentValidationReport {
   segmentId: string;
   errors: string[];
@@ -75,18 +81,29 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
     errors.push("Segment geometry extends beyond segment length.");
   }
 
-  const maxJumpRise =
+  const theoreticalMaxJumpRise =
     (PLAYER_CONFIG.jumpVelocity * PLAYER_CONFIG.jumpVelocity) /
     (2 * PLAYER_CONFIG.gravity);
+  const maxSafeJumpRise = theoreticalMaxJumpRise * MAX_RISE_SAFETY;
+  const landingEdgeBuffer = PLAYER_CONFIG.hitboxWidth;
 
   for (let index = 0; index < mainPath.length - 1; index += 1) {
     const current = mainPath[index];
     const next = mainPath[index + 1];
     const gap = next.x - (current.x + current.width);
     const dy = next.y - current.y;
+    const rise = dy < 0 ? Math.abs(dy) : 0;
 
-    if (dy < 0 && Math.abs(dy) > maxJumpRise) {
-      errors.push(`Main path rises too high between ${current.x} and ${next.x}.`);
+    if (gap <= 0 && rise > 0) {
+      errors.push(
+        `Adjacent upward step ${rise} between ${current.x} and ${next.x} can block Arcade movement.`
+      );
+    }
+
+    if (rise > maxSafeJumpRise) {
+      errors.push(
+        `Main path rises ${rise} between ${current.x} and ${next.x}, above safe rise ${maxSafeJumpRise.toFixed(1)}.`
+      );
     }
 
     const flightTime = computeFlightTime(dy);
@@ -95,9 +112,29 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
       continue;
     }
 
-    const safeReach = PLAYER_CONFIG.boostRunSpeed * flightTime * 0.8;
-    if (gap > safeReach) {
-      errors.push(`Gap ${gap} exceeds safe reach ${safeReach.toFixed(1)}.`);
+    if (gap > 0) {
+      const requiredReach = gap + landingEdgeBuffer;
+      const safeReach =
+        PLAYER_CONFIG.boostRunSpeed * flightTime * HORIZONTAL_REACH_SAFETY;
+      if (requiredReach > safeReach) {
+        errors.push(
+          `Gap ${gap} plus landing buffer ${landingEdgeBuffer} exceeds safe reach ${safeReach.toFixed(1)}.`
+        );
+      }
+
+      if (dy <= 0) {
+        const fullBoostReach = PLAYER_CONFIG.boostRunSpeed * flightTime;
+        const landingWindowEnd = gap + next.width - LANDING_MARGIN;
+        const earlyTakeoffAllowance = Math.min(
+          current.width * EARLY_TAKEOFF_PLATFORM_RATIO,
+          MAX_EARLY_TAKEOFF
+        );
+        if (fullBoostReach - earlyTakeoffAllowance > landingWindowEnd) {
+          errors.push(
+            `Landing window ${landingWindowEnd.toFixed(1)} is too short for full-speed jump reach ${fullBoostReach.toFixed(1)}.`
+          );
+        }
+      }
     }
 
     if (next.width < PLAYER_CONFIG.minLandingWidth) {
@@ -109,7 +146,7 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
     errors.push("Wall sprint cannot be enabled on consecutive-pit segments.");
   }
 
-  if (segment.paceTier === "onboarding") {
+  if (segment.paceTier === "onboarding" && segment.id !== "start-runway") {
     errors.push("Only the start segment may use onboarding pace.");
   }
 

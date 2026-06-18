@@ -25,7 +25,7 @@
 
 ### Config Modules
 
-- `playerConfig.ts`: movement envelope, jump tuning, hitbox inset
+- `playerConfig.ts`: manual movement envelope, jump tuning, hitbox inset, and minimum landing width
 - The player sprite is loaded from the reference-style `player3.png`; its visual size and gameplay hitbox are configured separately so art changes do not retune movement.
 - `wallConfig.ts`: state timings, speed factors, collision geometry
 - `scoreConfig.ts`: distance unit conversion, coin values, storage keys
@@ -77,6 +77,8 @@ Before runtime use, the segment catalog is checked for:
 - maximum reachable gap,
 - minimum landing width,
 - maximum upward jump rise,
+- adjacent upward step bans that would block Arcade Physics movement,
+- landing-window checks so a jump cannot merely touch a platform edge,
 - wall-sprint bans on consecutive-pit layouts,
 - unsafe intro and recovery beat content,
 - fake risk-coin placements,

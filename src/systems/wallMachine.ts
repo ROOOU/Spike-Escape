@@ -52,17 +52,17 @@ export class SpikeWallMachine {
     return this.state;
   }
 
-  getSpeed(baseRunSpeed: number): number {
+  getSpeed(baseAdvanceSpeed: number): number {
     switch (this.state) {
       case "warning":
-        return baseRunSpeed * WALL_CONFIG.chaseSpeedFactor;
+        return baseAdvanceSpeed * WALL_CONFIG.chaseSpeedFactor;
       case "sprint":
-        return baseRunSpeed * WALL_CONFIG.sprintSpeedFactor;
+        return baseAdvanceSpeed * WALL_CONFIG.sprintSpeedFactor;
       case "recover":
-        return baseRunSpeed * WALL_CONFIG.chaseSpeedFactor;
+        return baseAdvanceSpeed * WALL_CONFIG.chaseSpeedFactor;
       case "normal":
       default:
-        return baseRunSpeed * WALL_CONFIG.normalSpeedFactor;
+        return baseAdvanceSpeed * WALL_CONFIG.normalSpeedFactor;
     }
   }
 

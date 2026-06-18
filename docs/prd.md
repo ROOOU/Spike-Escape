@@ -16,8 +16,8 @@ The prototype succeeds if players clearly understand:
 
 1. Land on the ready prompt.
 2. Start the run with the first movement, jump, or touch input.
-3. Drift forward through stitched segments.
-4. Accelerate, brake, or retreat to line up jumps.
+3. Move through stitched segments with explicit left/right input.
+4. Accelerate, stop, or retreat to line up jumps.
 5. Read the current beat: setup, reward route, wall pressure, recovery, or climax.
 6. Collect normal and risk coins.
 7. Avoid pits, spikes, and the advancing wall.
@@ -43,13 +43,14 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 
 ## Movement Rules
 
-- The player has a baseline forward drift.
-- Drift, scoring, wall timers, and segment progression begin only after the ready prompt receives a start input.
-- Holding right accelerates beyond the drift speed.
+- The player does not auto-run; no horizontal input means no intentional horizontal movement.
+- Movement, scoring, wall timers, and segment progression begin only after the ready prompt receives a start input.
+- Holding right moves forward.
 - Holding left can reverse movement and allow full backtracking.
 - Jumping supports coyote time and jump buffering.
 - There is no double jump.
 - Collision is intentionally forgiving through a slightly inset player hitbox.
+- Platform gaps and height changes must fit the validated jump envelope; valid segments cannot require edge-perfect landings or impossible climbs.
 
 ## World Rules
 
@@ -79,6 +80,7 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 
 - Falling below the kill line ends the run.
 - Pit width must remain within the validated jump envelope.
+- Landing platforms after pits must be wide enough for a practical landing window.
 
 ### Spikes
 

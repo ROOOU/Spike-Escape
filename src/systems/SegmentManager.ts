@@ -25,7 +25,7 @@ export class SegmentManager {
   private generatedCount = 0;
 
   constructor(private readonly scene: Phaser.Scene) {
-    assertValidSegments(SEGMENT_CATALOG);
+    assertValidSegments([START_SEGMENT, ...SEGMENT_CATALOG]);
     this.platformGroup = scene.physics.add.staticGroup();
     this.coinManager = new CoinManager(scene);
     this.hazardManager = new HazardManager(scene);

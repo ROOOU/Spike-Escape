@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { SEGMENT_CATALOG, START_SEGMENT } from "../src/config/segments";
 import type { SegmentDefinition } from "../src/types/segments";
-import { validateSegment } from "../src/utils/segmentValidator";
+import { assertValidSegments, validateSegment } from "../src/utils/segmentValidator";
 
 const validSegment: SegmentDefinition = {
   id: "valid",
@@ -21,6 +22,10 @@ const validSegment: SegmentDefinition = {
 };
 
 describe("validateSegment", () => {
+  it("accepts the shipped segment catalog", () => {
+    expect(() => assertValidSegments([START_SEGMENT, ...SEGMENT_CATALOG])).not.toThrow();
+  });
+
   it("accepts a segment inside the movement envelope", () => {
     expect(validateSegment(validSegment).errors).toEqual([]);
   });
@@ -36,6 +41,59 @@ describe("validateSegment", () => {
     };
 
     expect(validateSegment(invalid).errors.join(" ")).toMatch(/Gap/);
+  });
+
+  it("rejects a gap that only works with unsafe edge-perfect landings", () => {
+    const invalid = {
+      ...validSegment,
+      id: "edge-perfect-gap",
+      platforms: [
+        { x: 0, y: 420, width: 200, height: 32, mainPath: true },
+        { x: 395, y: 420, width: 220, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/landing buffer/);
+  });
+
+  it("rejects jumps with too little landing window after the gap", () => {
+    const invalid = {
+      ...validSegment,
+      id: "short-landing-window",
+      platforms: [
+        { x: 0, y: 420, width: 220, height: 32, mainPath: true },
+        { x: 340, y: 420, width: 96, height: 32, mainPath: true },
+        { x: 436, y: 420, width: 204, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/Landing window/);
+  });
+
+  it("rejects adjacent upward steps that can block Arcade movement", () => {
+    const invalid = {
+      ...validSegment,
+      id: "blocked-step",
+      platforms: [
+        { x: 0, y: 420, width: 220, height: 32, mainPath: true },
+        { x: 220, y: 404, width: 220, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/Adjacent upward step/);
+  });
+
+  it("rejects platforms above the safe jump rise envelope", () => {
+    const invalid = {
+      ...validSegment,
+      id: "too-high",
+      platforms: [
+        { x: 0, y: 420, width: 220, height: 32, mainPath: true },
+        { x: 300, y: 320, width: 220, height: 32, mainPath: true }
+      ]
+    };
+
+    expect(validateSegment(invalid).errors.join(" ")).toMatch(/above safe rise/);
   });
 
   it("rejects a main-path landing that is too narrow", () => {

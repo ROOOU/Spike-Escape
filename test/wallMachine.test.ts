@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SpikeWallMachine, isWallCollision } from "../src/systems/wallMachine";
-import { PLAYER_CONFIG } from "../src/config/playerConfig";
+import { WALL_CONFIG } from "../src/config/wallConfig";
 
 describe("SpikeWallMachine", () => {
   it("transitions through warning, sprint, recover, and cooldown", () => {
@@ -64,8 +64,10 @@ describe("SpikeWallMachine", () => {
   it("uses the expected speed factors", () => {
     const machine = new SpikeWallMachine();
 
-    const initialSpeed = machine.getSpeed(PLAYER_CONFIG.baseRunSpeed);
-    expect(initialSpeed).toBe(PLAYER_CONFIG.baseRunSpeed * 0.75);
+    const initialSpeed = machine.getSpeed(WALL_CONFIG.baseAdvanceSpeed);
+    expect(initialSpeed).toBe(
+      WALL_CONFIG.baseAdvanceSpeed * WALL_CONFIG.normalSpeedFactor
+    );
   });
 
   it("detects wall collision when the front edge reaches the player", () => {

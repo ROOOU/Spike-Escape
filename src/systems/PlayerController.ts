@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import { PLAYER_CONFIG } from "../config/playerConfig";
 import type { InputSnapshot } from "./inputModel";
+import { resolvePlayerTargetVelocityX } from "./playerMovement";
 
 export class PlayerController {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
@@ -27,7 +28,10 @@ export class PlayerController {
 
     body.setGravityY(PLAYER_CONFIG.gravity);
     body.setMaxVelocity(
-      Math.abs(PLAYER_CONFIG.boostRunSpeed),
+      Math.max(
+        Math.abs(PLAYER_CONFIG.boostRunSpeed),
+        Math.abs(PLAYER_CONFIG.reverseRunSpeed)
+      ),
       PLAYER_CONFIG.maxFallSpeed
     );
     body.setSize(hitboxSourceWidth, hitboxSourceHeight);
@@ -44,7 +48,7 @@ export class PlayerController {
       this.jumpBufferedUntilMs = timeMs + PLAYER_CONFIG.jumpBufferMs;
     }
 
-    const targetVelocityX = this.resolveTargetVelocityX(input);
+    const targetVelocityX = resolvePlayerTargetVelocityX(input);
     const controlFactor = grounded ? 1 : 0.82;
     const lerpFactor = Math.min(
       1,
@@ -76,22 +80,10 @@ export class PlayerController {
     return this.body.x;
   }
 
-  private resolveTargetVelocityX(input: InputSnapshot): number {
-    if (input.left && !input.right) {
-      return PLAYER_CONFIG.reverseRunSpeed;
-    }
-
-    if (input.right && !input.left) {
-      return PLAYER_CONFIG.boostRunSpeed;
-    }
-
-    return PLAYER_CONFIG.baseRunSpeed;
-  }
-
   private updatePresentation(): void {
-    if (this.body.velocity.x < PLAYER_CONFIG.baseRunSpeed - 10) {
+    if (this.body.velocity.x < -PLAYER_CONFIG.facingDeadZone) {
       this.sprite.setFlipX(true);
-    } else if (this.body.velocity.x > PLAYER_CONFIG.baseRunSpeed + 10) {
+    } else if (this.body.velocity.x > PLAYER_CONFIG.facingDeadZone) {
       this.sprite.setFlipX(false);
     }
   }

@@ -154,8 +154,7 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
     platforms: [
       { x: 0, y: ground, width: 184, height: 32, mainPath: true },
       { x: 264, y: ledge, width: 136, height: 32, mainPath: true },
-      { x: 456, y: peak, width: 96, height: 32, mainPath: true },
-      { x: 552, y: peak, width: 152, height: 32, mainPath: true }
+      { x: 456, y: peak, width: 248, height: 32, mainPath: true }
     ],
     hazards: [],
     coins: [
@@ -207,7 +206,7 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
     },
     platforms: [
       { x: 0, y: ground, width: 208, height: 32, mainPath: true },
-      { x: 336, y: ledge, width: 88, height: 32, mainPath: true },
+      { x: 336, y: ledge, width: 120, height: 32, mainPath: true },
       { x: 536, y: ground, width: 200, height: 32, mainPath: true }
     ],
     hazards: [],
@@ -285,7 +284,7 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
     platforms: [
       { x: 0, y: ground, width: 224, height: 32, mainPath: true },
       { x: 224, y: ground, width: 160, height: 32, mainPath: true },
-      { x: 384, y: lip, width: 176, height: 32, mainPath: true },
+      { x: 384, y: ground, width: 176, height: 32, mainPath: true },
       { x: 560, y: ground, width: 272, height: 32, mainPath: true }
     ],
     hazards: [],

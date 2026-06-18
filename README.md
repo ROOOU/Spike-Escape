@@ -1,6 +1,6 @@
 # Spike Escape
 
-Spike Escape is a web-first Phaser prototype for a 2D endless escape runner. The player drifts forward by default, can accelerate, brake, or fully retreat, and must survive pits, spikes, risky coin routes, and a relentless spike wall.
+Spike Escape is a web-first Phaser prototype for a 2D endless escape runner. The player moves only when the player presses left/right, can jump to cross authored platform gaps, and must survive pits, spikes, risky coin routes, and a relentless spike wall.
 
 ## Gameplay Summary
 
@@ -75,6 +75,7 @@ Use `stop-spike-escape.command` to stop the local dev server.
 - The player character uses the uploaded reference sprite at `public/reference-style/player3.png`.
 - External images are declared in `src/assets/referenceAssets.ts`; code-generated gameplay textures live in `src/assets/generatedTextures.ts`.
 - Segment data is validated before runtime use.
+- Segment validation checks gap width, platform height changes, landing width, and landing windows against the player jump envelope.
 - The segment planner steers runs through repeatable pacing beats so the stream feels closer to a compact platforming level than a flat random shuffle.
 - The entry module stays lightweight and lazy-loads the Phaser runtime through `src/game/startGame.ts`.
 - Production builds split `phaser` into its own cacheable chunk and enforce a small bundle budget with `scripts/check-bundle-size.mjs`.

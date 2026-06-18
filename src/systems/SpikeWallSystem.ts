@@ -45,7 +45,7 @@ export class SpikeWallSystem {
       gapToPlayer: playerLeftX - this.frontX
     });
 
-    const speed = this.machine.getSpeed(PLAYER_CONFIG.baseRunSpeed);
+    const speed = this.machine.getSpeed(WALL_CONFIG.baseAdvanceSpeed);
     this.frontX += speed * (deltaMs / 1000);
     this.wall.x = this.frontX - WALL_CONFIG.width;
 

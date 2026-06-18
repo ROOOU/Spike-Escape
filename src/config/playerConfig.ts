@@ -6,14 +6,15 @@ export const PLAYER_CONFIG = {
   hitboxOffsetY: 20,
   startX: 160,
   startY: 350,
-  baseRunSpeed: 220,
+  idleSpeed: 0,
   boostRunSpeed: 300,
   reverseRunSpeed: -170,
+  facingDeadZone: 10,
   horizontalResponsiveness: 10,
   jumpVelocity: 420,
   gravity: 900,
   maxFallSpeed: 650,
   coyoteTimeMs: 100,
   jumpBufferMs: 120,
-  minLandingWidth: 72
+  minLandingWidth: 96
 } as const;

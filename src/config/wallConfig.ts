@@ -2,6 +2,7 @@ export const WALL_CONFIG = {
   width: 72,
   initialOffset: 260,
   dangerDistance: 220,
+  baseAdvanceSpeed: 220,
   normalSpeedFactor: 0.75,
   chaseSpeedFactor: 0.95,
   sprintSpeedFactor: 1.2,

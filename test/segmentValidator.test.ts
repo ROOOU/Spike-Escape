@@ -140,6 +140,42 @@ describe("validateSegment", () => {
     expect(validateSegment(invalid).errors.join(" ")).toMatch(/Wall sprint/);
   });
 
+  it("rejects unreadable or out-of-bounds mechanical traps", () => {
+    const invalid = {
+      ...validSegment,
+      id: "bad-traps",
+      hazards: [
+        {
+          x: 580,
+          y: 388,
+          width: 32,
+          height: 32,
+          kind: "patrol-spike" as const,
+          patrol: { axis: "x" as const, distance: 96, durationMs: 500 }
+        },
+        {
+          x: 320,
+          y: 288,
+          width: 64,
+          height: 38,
+          kind: "crusher" as const,
+          crusher: {
+            distance: 96,
+            warningMs: 300,
+            slamMs: 220,
+            holdMs: 360,
+            returnMs: 720
+          }
+        }
+      ]
+    };
+
+    const errors = validateSegment(invalid).errors.join(" ");
+    expect(errors).toMatch(/extends beyond segment length/);
+    expect(errors).toMatch(/moves too fast/);
+    expect(errors).toMatch(/warning time/);
+  });
+
   it("rejects unsafe vertical steps between segment boundaries", () => {
     const first = {
       ...validSegment,

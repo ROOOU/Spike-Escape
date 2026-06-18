@@ -52,6 +52,38 @@ export function createGeneratedTextures(scene: Phaser.Scene): void {
   g.generateTexture("spike", 28, 24);
   g.clear();
 
+  g.fillStyle(0x000000, 1);
+  g.fillRect(4, 0, 24, 4);
+  g.fillRect(0, 4, 32, 24);
+  g.fillRect(4, 28, 24, 4);
+  g.fillStyle(0x3b1240, 1);
+  g.fillRect(4, 4, 24, 24);
+  g.fillStyle(0xff3a30, 1);
+  for (let i = 0; i < 8; i += 1) {
+    const x = 4 + (i % 4) * 6;
+    const y = 4 + Math.floor(i / 4) * 12;
+    g.fillTriangle(x, y + 6, x + 4, y, x + 8, y + 6);
+    g.fillTriangle(x, y + 6, x + 4, y + 12, x + 8, y + 6);
+  }
+  g.generateTexture("patrol-spike", 32, 32);
+  g.clear();
+
+  g.fillStyle(0x000000, 1);
+  g.fillRect(0, 0, 64, 38);
+  g.fillStyle(0x5a3218, 1);
+  g.fillRect(4, 4, 56, 26);
+  g.fillStyle(0x8b5a2b, 1);
+  for (let x = 8; x < 56; x += 12) {
+    g.fillRect(x, 8, 6, 4);
+    g.fillRect(x + 3, 20, 6, 4);
+  }
+  g.fillStyle(0xff3a30, 1);
+  for (let x = 4; x < 60; x += 10) {
+    g.fillTriangle(x, 30, x + 5, 38, x + 10, 30);
+  }
+  g.generateTexture("crusher", 64, 38);
+  g.clear();
+
   g.fillStyle(0x007f20, 1);
   g.fillRect(8, 18, 4, 12);
   g.fillRect(14, 10, 4, 20);

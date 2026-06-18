@@ -51,6 +51,8 @@ export class SegmentManager {
   }
 
   update(progressAnchorX: number, elapsedMs: number): void {
+    this.hazardManager.update(elapsedMs);
+
     while (this.spawnCursorX < progressAnchorX + WORLD_CONFIG.spawnAheadDistance) {
       this.spawnNext(progressAnchorX, elapsedMs);
     }

@@ -39,7 +39,7 @@
 - `PlayerController`: movement, gravity, coyote time, jump buffer, and landing state
 - `SegmentManager`: segment selection, spawning, recycling, active-segment lookup, and runtime segment sequence bookkeeping
 - `CoinManager`: collectible spawning and one-time pickup handling
-- `HazardManager`: spike spawning and collision callbacks
+- `HazardManager`: static spikes, animated patrol thorns, timed thorn presses, and collision callbacks
 - `SpikeWallSystem`: runtime wall motion and visuals driven by a pure state machine
 - `wallMachine.ts`: pure state machine for wall phases and sprint cooldown logic
 - `scoreTracker.ts`: pure anti-farming score logic based on furthest progress
@@ -84,6 +84,7 @@ Before runtime use, the segment catalog is checked for:
 - full-body landing bounds that include the player hitbox and margin,
 - segment-boundary transitions for every catalog pair,
 - wall-sprint bans on consecutive-pit layouts,
+- mechanical-trap timing and movement bounds,
 - unsafe intro and recovery beat content,
 - fake risk-coin placements,
 - segment length consistency.

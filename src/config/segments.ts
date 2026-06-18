@@ -183,7 +183,15 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       { x: 560, y: ground, width: 208, height: 32, mainPath: true }
     ],
     hazards: [
-      { x: 220, y: ground - 24, width: 236, height: 24, kind: "spike" }
+      { x: 220, y: ground - 24, width: 236, height: 24, kind: "spike" },
+      {
+        x: 326,
+        y: ground - 96,
+        width: 32,
+        height: 32,
+        kind: "patrol-spike",
+        patrol: { axis: "x", distance: 104, durationMs: 1900 }
+      }
     ],
     coins: [
       { x: 392, y: 292, type: "normal" },
@@ -234,7 +242,22 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       { x: 512, y: ground, width: 256, height: 32, mainPath: true }
     ],
     hazards: [
-      { x: 272, y: ground - 24, width: 72, height: 24, kind: "spike" }
+      { x: 272, y: ground - 24, width: 72, height: 24, kind: "spike" },
+      {
+        x: 608,
+        y: ground - 132,
+        width: 64,
+        height: 38,
+        kind: "crusher",
+        crusher: {
+          distance: 94,
+          warningMs: 700,
+          slamMs: 240,
+          holdMs: 360,
+          returnMs: 780,
+          phaseMs: 280
+        }
+      }
     ],
     coins: [
       { x: 400, y: 308, type: "risk" },
@@ -315,7 +338,29 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       { x: 712, y: ground, width: 120, height: 32, mainPath: true }
     ],
     hazards: [
-      { x: 472, y: ground - 24, width: 72, height: 24, kind: "spike" }
+      { x: 472, y: ground - 24, width: 72, height: 24, kind: "spike" },
+      {
+        x: 300,
+        y: lip - 32,
+        width: 32,
+        height: 32,
+        kind: "patrol-spike",
+        patrol: { axis: "x", distance: 72, durationMs: 1500, phaseMs: 220 }
+      },
+      {
+        x: 720,
+        y: ground - 132,
+        width: 64,
+        height: 38,
+        kind: "crusher",
+        crusher: {
+          distance: 94,
+          warningMs: 560,
+          slamMs: 220,
+          holdMs: 420,
+          returnMs: 720
+        }
+      }
     ],
     coins: [
       { x: 224, y: 334, type: "normal" },

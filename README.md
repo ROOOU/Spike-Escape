@@ -10,6 +10,7 @@ Spike Escape is a web-first Phaser prototype for a 2D endless escape runner. The
 - Keyboard and touch controls ship in v1.
 - Backtracking is allowed, but score and distance only use the furthest progress reached.
 - Coins are one-time pickups: normal coins reward safe routing, risk coins reward dangerous routes.
+- Mid and late segments add readable traps such as moving thorns and timed thorn presses.
 - The spike wall advances independently of the player and kills on contact.
 
 ## Controls
@@ -75,7 +76,7 @@ Use `stop-spike-escape.command` to stop the local dev server.
 - The player character uses the uploaded reference sprite at `public/reference-style/player3.png`.
 - External images are declared in `src/assets/referenceAssets.ts`; code-generated gameplay textures live in `src/assets/generatedTextures.ts`.
 - Segment data is validated before runtime use.
-- Segment validation checks gap width, platform height changes, landing width, full-body landing windows, and segment-boundary transitions against a practical player jump envelope.
+- Segment validation checks gap width, platform height changes, landing width, trap timing, full-body landing windows, and segment-boundary transitions against a practical player jump envelope.
 - The segment planner steers runs through repeatable pacing beats so the stream feels closer to a compact platforming level than a flat random shuffle.
 - The entry module stays lightweight and lazy-loads the Phaser runtime through `src/game/startGame.ts`.
 - Production builds split `phaser` into its own cacheable chunk and enforce a small bundle budget with `scripts/check-bundle-size.mjs`.

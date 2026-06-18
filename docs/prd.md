@@ -89,6 +89,13 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 - Touching spikes ends the run immediately.
 - Spike placement must stay visually obvious and never blend into the floor.
 
+### Mechanical Traps
+
+- Moving thorn traps patrol short, visible lanes and should teach timing without requiring perfect jumps.
+- Thorn presses telegraph before slamming down and must include enough warning time to be readable.
+- Mechanical traps should appear in pressure, climax, or later reward beats, not in the opening onboarding sequence.
+- Trap routes may protect risk coins, but the safe main route must stay legible.
+
 ### Spike Wall
 
 - The wall kills on contact.

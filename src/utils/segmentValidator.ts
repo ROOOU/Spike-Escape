@@ -62,6 +62,14 @@ function riskCoinOverMainPathGap(mainPath: PlatformDefinition[], x: number): boo
   return false;
 }
 
+function hazardMaxX(hazard: SegmentDefinition["hazards"][number]): number {
+  if (hazard.kind === "patrol-spike" && hazard.patrol?.axis === "x") {
+    return hazard.x + hazard.width + Math.max(0, hazard.patrol.distance);
+  }
+
+  return hazard.x + hazard.width;
+}
+
 function validatePlatformTransition({
   current,
   next,
@@ -151,7 +159,7 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
   const highestExtent = Math.max(
     0,
     ...segment.platforms.map((platform) => platform.x + platform.width),
-    ...segment.hazards.map((hazard) => hazard.x + hazard.width)
+    ...segment.hazards.map(hazardMaxX)
   );
 
   if (highestExtent > segment.length) {
@@ -198,6 +206,41 @@ export function validateSegment(segment: SegmentDefinition): SegmentValidationRe
       errors.push("Recovery segments cannot contain risk coins.");
     }
   }
+
+  segment.hazards.forEach((hazard) => {
+    if (hazard.kind === "patrol-spike") {
+      if (!hazard.patrol) {
+        errors.push(`Patrol hazard at ${hazard.x} is missing patrol motion.`);
+      } else {
+        if (hazard.patrol.distance <= 0) {
+          errors.push(`Patrol hazard at ${hazard.x} must move a positive distance.`);
+        }
+
+        if (hazard.patrol.durationMs < 600) {
+          errors.push(`Patrol hazard at ${hazard.x} moves too fast for readable timing.`);
+        }
+      }
+    }
+
+    if (hazard.kind === "crusher") {
+      if (!hazard.crusher) {
+        errors.push(`Crusher at ${hazard.x} is missing crusher timing.`);
+      } else {
+        const totalCycle =
+          hazard.crusher.warningMs +
+          hazard.crusher.slamMs +
+          hazard.crusher.holdMs +
+          hazard.crusher.returnMs;
+        if (hazard.crusher.distance <= 0 || totalCycle <= 0) {
+          errors.push(`Crusher at ${hazard.x} must have positive movement and timing.`);
+        }
+
+        if (hazard.crusher.warningMs < 450) {
+          errors.push(`Crusher at ${hazard.x} needs at least 450ms warning time.`);
+        }
+      }
+    }
+  });
 
   for (const coin of segment.coins.filter((entry) => entry.type === "risk")) {
     if (coin.x < 96 || coin.x > segment.length - 96) {

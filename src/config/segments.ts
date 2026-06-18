@@ -3,8 +3,8 @@ import type { SegmentDefinition } from "../types/segments";
 
 const ground = WORLD_CONFIG.groundTop;
 const lip = ground - 16;
+const hop = ground - 32;
 const ledge = ground - 48;
-const peak = ground - 96;
 
 export const START_SEGMENT: SegmentDefinition = {
   id: "start-runway",
@@ -74,8 +74,8 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       introOrder: 1
     },
     platforms: [
-      { x: 0, y: ground, width: 224, height: 32, mainPath: true },
-      { x: 344, y: lip, width: 128, height: 32, mainPath: true },
+      { x: 0, y: ground, width: 256, height: 32, mainPath: true },
+      { x: 336, y: lip, width: 160, height: 32, mainPath: true },
       { x: 472, y: ground, width: 168, height: 32, mainPath: true }
     ],
     hazards: [],
@@ -99,15 +99,15 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       introOrder: 2
     },
     platforms: [
-      { x: 0, y: ground, width: 224, height: 32, mainPath: true },
-      { x: 320, y: ledge, width: 144, height: 32, mainPath: true },
+      { x: 0, y: ground, width: 256, height: 32, mainPath: true },
+      { x: 320, y: hop, width: 160, height: 32, mainPath: true },
       { x: 464, y: ground, width: 208, height: 32, mainPath: true }
     ],
     hazards: [],
     coins: [
-      { x: 250, y: 344, type: "normal" },
-      { x: 294, y: 308, type: "normal" },
-      { x: 338, y: 278, type: "normal" }
+      { x: 268, y: 350, type: "normal" },
+      { x: 306, y: 326, type: "normal" },
+      { x: 348, y: 302, type: "normal" }
     ]
   },
   {
@@ -152,15 +152,15 @@ export const SEGMENT_CATALOG: SegmentDefinition[] = [
       introOrder: 4
     },
     platforms: [
-      { x: 0, y: ground, width: 184, height: 32, mainPath: true },
-      { x: 264, y: ledge, width: 136, height: 32, mainPath: true },
-      { x: 456, y: peak, width: 248, height: 32, mainPath: true }
+      { x: 0, y: ground, width: 216, height: 32, mainPath: true },
+      { x: 288, y: hop, width: 160, height: 32, mainPath: true },
+      { x: 512, y: ground - 64, width: 192, height: 32, mainPath: true }
     ],
     hazards: [],
     coins: [
-      { x: 328, y: 318, type: "normal" },
-      { x: 504, y: 270, type: "normal" },
-      { x: 622, y: 270, type: "normal" }
+      { x: 344, y: 330, type: "normal" },
+      { x: 548, y: 292, type: "normal" },
+      { x: 636, y: 292, type: "normal" }
     ]
   },
   {

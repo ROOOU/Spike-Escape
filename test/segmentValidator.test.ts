@@ -66,8 +66,8 @@ describe("validateSegment", () => {
       id: "theoretical-upward-gap",
       platforms: [
         { x: 0, y: 420, width: 208, height: 32, mainPath: true },
-        { x: 336, y: 372, width: 128, height: 32, mainPath: true },
-        { x: 464, y: 420, width: 176, height: 32, mainPath: true }
+        { x: 360, y: 372, width: 128, height: 32, mainPath: true },
+        { x: 488, y: 420, width: 152, height: 32, mainPath: true }
       ]
     };
 

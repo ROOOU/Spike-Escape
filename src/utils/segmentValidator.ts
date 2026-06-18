@@ -2,6 +2,7 @@ import { PLAYER_CONFIG } from "../config/playerConfig";
 import type { PlatformDefinition, SegmentDefinition } from "../types/segments";
 
 const PRACTICAL_JUMP_SPEED_FACTOR = 0.65;
+const CONTROLLED_JUMP_SPEED_FACTOR = 0.85;
 const MAX_RISE_SAFETY = 0.9;
 const LANDING_MARGIN = 16;
 const MAX_EARLY_TAKEOFF = 72;
@@ -107,16 +108,17 @@ function validatePlatformTransition({
     }
 
     if (dy <= 0) {
-      const fullBoostReach = PLAYER_CONFIG.boostRunSpeed * flightTime;
+      const controlledJumpReach =
+        PLAYER_CONFIG.boostRunSpeed * CONTROLLED_JUMP_SPEED_FACTOR * flightTime;
       const landingWindowEnd =
         gap + next.width - PLAYER_CONFIG.hitboxWidth - LANDING_MARGIN;
       const earlyTakeoffAllowance = Math.min(
         current.width * EARLY_TAKEOFF_PLATFORM_RATIO,
         MAX_EARLY_TAKEOFF
       );
-      if (fullBoostReach - earlyTakeoffAllowance > landingWindowEnd) {
+      if (controlledJumpReach - earlyTakeoffAllowance > landingWindowEnd) {
         errors.push(
-          `${label}: Landing window ${landingWindowEnd.toFixed(1)} is too short for full-speed jump reach ${fullBoostReach.toFixed(1)}.`
+          `${label}: Landing window ${landingWindowEnd.toFixed(1)} is too short for controlled jump reach ${controlledJumpReach.toFixed(1)}.`
         );
       }
     }

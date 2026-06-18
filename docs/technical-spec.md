@@ -80,6 +80,7 @@ Before runtime use, the segment catalog is checked for:
 - adjacent upward step bans that would block Arcade Physics movement,
 - landing-window checks so a jump cannot merely touch a platform edge,
 - practical-reach checks that assume less than theoretical full speed,
+- controlled-jump checks that account for player air control instead of requiring held max speed,
 - full-body landing bounds that include the player hitbox and margin,
 - segment-boundary transitions for every catalog pair,
 - wall-sprint bans on consecutive-pit layouts,

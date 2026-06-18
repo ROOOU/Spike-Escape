@@ -47,7 +47,7 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 - Movement, scoring, wall timers, and segment progression begin only after the ready prompt receives a start input.
 - Holding right moves forward.
 - Holding left can reverse movement and allow full backtracking.
-- Jumping supports coyote time and jump buffering.
+- Jumping supports generous coyote time and jump buffering so early misses do not feel punitive.
 - There is no double jump.
 - Collision is intentionally forgiving through a slightly inset player hitbox.
 - Platform gaps and height changes must fit the validated jump envelope; valid segments cannot require edge-perfect landings or impossible climbs.
@@ -82,6 +82,7 @@ Touch inputs must map to the same gameplay actions as keyboard inputs.
 - Pit width must remain within the validated jump envelope.
 - Landing platforms after pits must be wide enough for a practical landing window.
 - Authored pits must be playable below theoretical full speed; validator rules should reject jumps that only work from perfect edge takeoff or perfect max-speed timing.
+- Opening segments should use short gaps, low rises, and wide landings before precision or hazard pressure appears.
 
 ### Spikes
 

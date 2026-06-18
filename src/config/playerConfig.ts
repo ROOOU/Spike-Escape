@@ -10,11 +10,11 @@ export const PLAYER_CONFIG = {
   boostRunSpeed: 300,
   reverseRunSpeed: -170,
   facingDeadZone: 10,
-  horizontalResponsiveness: 10,
-  jumpVelocity: 420,
-  gravity: 900,
+  horizontalResponsiveness: 12,
+  jumpVelocity: 435,
+  gravity: 860,
   maxFallSpeed: 650,
-  coyoteTimeMs: 100,
-  jumpBufferMs: 120,
+  coyoteTimeMs: 140,
+  jumpBufferMs: 170,
   minLandingWidth: 96
 } as const;

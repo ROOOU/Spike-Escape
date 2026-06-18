@@ -42,20 +42,6 @@ export function createGeneratedTextures(scene: Phaser.Scene): void {
   g.clear();
 
   g.fillStyle(0x000000, 1);
-  g.fillRect(10, 0, 16, 10);
-  g.fillRect(6, 10, 24, 32);
-  g.fillRect(12, 42, 4, 10);
-  g.fillRect(20, 42, 4, 10);
-  g.fillStyle(0xffffff, 1);
-  g.fillRect(12, 2, 12, 8);
-  g.fillRect(8, 12, 20, 28);
-  g.fillRect(14, 16, 3, 3);
-  g.fillRect(21, 16, 3, 3);
-  g.fillRect(14, 24, 10, 3);
-  g.generateTexture("player", 36, 52);
-  g.clear();
-
-  g.fillStyle(0x000000, 1);
   g.fillRect(10, 0, 8, 8);
   g.fillRect(4, 8, 20, 8);
   g.fillRect(0, 16, 28, 8);

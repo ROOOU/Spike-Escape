@@ -72,6 +72,7 @@ Use `stop-spike-escape.command` to stop the local dev server.
 ## Implementation Notes
 
 - The current 2D look mixes Phaser-generated primitives with repo-owned reference-style art under `public/reference-style`.
+- The player character uses the uploaded reference sprite at `public/reference-style/player3.png`.
 - External images are declared in `src/assets/referenceAssets.ts`; code-generated gameplay textures live in `src/assets/generatedTextures.ts`.
 - Segment data is validated before runtime use.
 - The segment planner steers runs through repeatable pacing beats so the stream feels closer to a compact platforming level than a flat random shuffle.

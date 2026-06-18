@@ -1,8 +1,9 @@
 export const PLAYER_CONFIG = {
-  width: 32,
-  height: 48,
-  bodyInsetX: 6,
-  bodyInsetY: 4,
+  visualWidth: 32,
+  visualHeight: 64,
+  hitboxWidth: 20,
+  hitboxHeight: 40,
+  hitboxOffsetY: 20,
   startX: 160,
   startY: 350,
   baseRunSpeed: 220,

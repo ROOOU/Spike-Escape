@@ -21,11 +21,12 @@
 - `game/startGame.ts`: creates the Phaser game instance and owns Phaser-specific configuration.
 - `game/scenes.ts`: central scene registry.
 - `assets/referenceAssets.ts`: manifest for external reference-style image assets loaded by `BootScene`.
-- `assets/generatedTextures.ts`: centralized Phaser texture generation for code-drawn sprites, platforms, hazards, and wall art.
+- `assets/generatedTextures.ts`: centralized Phaser texture generation for code-drawn platforms, hazards, and wall art.
 
 ### Config Modules
 
 - `playerConfig.ts`: movement envelope, jump tuning, hitbox inset
+- The player sprite is loaded from the reference-style `player3.png`; its visual size and gameplay hitbox are configured separately so art changes do not retune movement.
 - `wallConfig.ts`: state timings, speed factors, collision geometry
 - `scoreConfig.ts`: distance unit conversion, coin values, storage keys
 - `segments.ts`: start segment plus weighted segment catalog

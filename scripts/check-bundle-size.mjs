@@ -6,13 +6,14 @@ const root = process.cwd();
 const distDir = path.join(root, "dist");
 const assetsDir = path.join(distDir, "assets");
 const publicRefDir = path.join(root, "public", "reference-style");
+const publicGameAssetsDir = path.join(root, "public", "game-assets");
 
 const KiB = 1024;
 const BUDGETS = {
   entryJsGzip: 30 * KiB,
   totalJsGzip: 380 * KiB,
   totalCssGzip: 24 * KiB,
-  totalReferenceAssetsRaw: 160 * KiB
+  totalRuntimeImageAssetsRaw: 240 * KiB
 };
 
 function collectFiles(dir) {
@@ -58,11 +59,12 @@ const assets = collectFiles(assetsDir);
 const jsFiles = assets.filter((file) => file.endsWith(".js"));
 const cssFiles = assets.filter((file) => file.endsWith(".css"));
 const referenceFiles = collectFiles(publicRefDir);
+const gameAssetFiles = collectFiles(publicGameAssetsDir);
 const entryScriptName = readEntryScriptName();
 const entryScript = jsFiles.find((file) => path.basename(file) === entryScriptName);
 const totalJsGzip = jsFiles.reduce((sum, file) => sum + gzipSize(file), 0);
 const totalCssGzip = cssFiles.reduce((sum, file) => sum + gzipSize(file), 0);
-const totalReferenceAssetsRaw = referenceFiles.reduce(
+const totalRuntimeImageAssetsRaw = [...referenceFiles, ...gameAssetFiles].reduce(
   (sum, file) => sum + fs.statSync(file).size,
   0
 );
@@ -76,7 +78,12 @@ if (!entryScript) {
 
 check("total JS gzip", totalJsGzip, BUDGETS.totalJsGzip, failures);
 check("total CSS gzip", totalCssGzip, BUDGETS.totalCssGzip, failures);
-check("reference assets raw", totalReferenceAssetsRaw, BUDGETS.totalReferenceAssetsRaw, failures);
+check(
+  "runtime image assets raw",
+  totalRuntimeImageAssetsRaw,
+  BUDGETS.totalRuntimeImageAssetsRaw,
+  failures
+);
 
 if (!jsFiles.some((file) => path.basename(file).startsWith("phaser-"))) {
   failures.push("Expected Phaser to be emitted as its own manual chunk.");

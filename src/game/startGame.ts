@@ -9,7 +9,7 @@ export function startGame(): Phaser.Game {
     parent: "game-root",
     width: VIEWPORT.width,
     height: VIEWPORT.height,
-    backgroundColor: "#87d5ff",
+    backgroundColor: "#050906",
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH
@@ -18,7 +18,7 @@ export function startGame(): Phaser.Game {
     physics: {
       default: "arcade",
       arcade: {
-        gravity: { x: 0, y: PLAYER_CONFIG.gravity },
+        gravity: { x: 0, y: PLAYER_CONFIG.worldGravityY },
         debug: false
       }
     },

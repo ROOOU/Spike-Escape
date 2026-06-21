@@ -8,8 +8,19 @@ import { ScoreTracker, type ScoreSnapshot } from "../systems/scoreTracker";
 import { SegmentManager } from "../systems/SegmentManager";
 import { SpikeWallSystem } from "../systems/SpikeWallSystem";
 import { HUD } from "../ui/HUD";
+import {
+  feedbackForCoin,
+  feedbackForShieldBreak,
+  feedbackForSlow,
+  feedbackForStomp
+} from "../ui/eventFeedbackConfig";
+import {
+  progressionStageForDistance,
+  type ProgressionStage
+} from "../utils/progressionStage";
 import { loadBestScore, saveBestScore } from "../utils/storage";
 import type { WallState } from "../systems/wallMachine";
+import type { PickupKind } from "../types/segments";
 
 const READY_START_CODES = new Set([
   "ArrowLeft",
@@ -21,6 +32,35 @@ const READY_START_CODES = new Set([
   "Space"
 ]);
 const READY_START_KEYS = new Set([" ", "Spacebar"]);
+const SHIELD_DAMAGE_GRACE_MS = 720;
+const MAGNET_DURATION_MS = 4_200;
+const WALL_FOCUS_DURATION_MS = 3_600;
+const WALL_FOCUS_TIME_SCALE = 0.45;
+
+interface SpikeEscapeQaState {
+  scene: "GameScene";
+  waitingToStart: boolean;
+  ended: boolean;
+  playerX: number;
+  playerY: number;
+  score: number;
+  distanceUnits: number;
+  activeSegmentId: string;
+  wallState: WallState;
+  shieldCharges: number;
+  magnetActive: boolean;
+  wallFocusActive: boolean;
+  stompCount: number;
+  playerHeadKey: string;
+  movementScale: number;
+  deathReason?: string;
+}
+
+declare global {
+  interface Window {
+    __SPIKE_ESCAPE_QA__?: SpikeEscapeQaState;
+  }
+}
 
 export class GameScene extends Phaser.Scene {
   private inputController!: InputController;
@@ -37,11 +77,20 @@ export class GameScene extends Phaser.Scene {
   private lastChapterBannerAtMs = Number.NEGATIVE_INFINITY;
   private lastWallState: WallState = "normal";
   private lastProgressBand = -1;
+  private lastStageKey = "";
   private lastScoreTotal = 0;
   private lastDistanceUnits = 0;
   private lastBeatLabel = "SETUP";
   private lastChapterLabel = "RUN 01";
   private waitingToStart = true;
+  private slowUntilMs = Number.NEGATIVE_INFINITY;
+  private movementScale = 1;
+  private lastSlowFeedbackAtMs = Number.NEGATIVE_INFINITY;
+  private shieldCharges = 0;
+  private magnetUntilMs = Number.NEGATIVE_INFINITY;
+  private wallFocusUntilMs = Number.NEGATIVE_INFINITY;
+  private stompCount = 0;
+  private damageImmuneUntilMs = Number.NEGATIVE_INFINITY;
   private readyPrompt?: Phaser.GameObjects.Container;
   private readonly handleReadyKeyDown = (event: KeyboardEvent): void => {
     if (
@@ -67,10 +116,19 @@ export class GameScene extends Phaser.Scene {
     this.lastChapterBannerAtMs = Number.NEGATIVE_INFINITY;
     this.lastWallState = "normal";
     this.lastProgressBand = -1;
+    this.lastStageKey = "";
     this.lastScoreTotal = 0;
     this.lastDistanceUnits = 0;
     this.lastBeatLabel = "SETUP";
     this.lastChapterLabel = "RUN 01";
+    this.slowUntilMs = Number.NEGATIVE_INFINITY;
+    this.movementScale = 1;
+    this.lastSlowFeedbackAtMs = Number.NEGATIVE_INFINITY;
+    this.shieldCharges = 0;
+    this.magnetUntilMs = Number.NEGATIVE_INFINITY;
+    this.wallFocusUntilMs = Number.NEGATIVE_INFINITY;
+    this.stompCount = 0;
+    this.damageImmuneUntilMs = Number.NEGATIVE_INFINITY;
     this.bestScore = loadBestScore(SCORE_CONFIG.bestScoreStorageKey, window.localStorage);
 
     this.physics.world.setBounds(
@@ -90,9 +148,18 @@ export class GameScene extends Phaser.Scene {
       this.player.sprite,
       (type) => {
         const snapshot = this.scoreTracker.collectCoin(type);
-        this.hud.update(snapshot, this.bestScore, this.wallSystem.getState());
+        this.hud.update(
+          snapshot,
+          this.bestScore,
+          this.wallSystem.getState(),
+          this.shieldCharges
+        );
+        this.showCoinFeedback(type);
       },
-      (reason) => this.finishRun(reason)
+      (kind) => this.collectPickup(kind),
+      (reason) => this.handleHazardHit(reason),
+      () => this.showStompFeedback(),
+      (speedFactor, durationMs) => this.applySlow(speedFactor, durationMs)
     );
 
     this.wallSystem = new SpikeWallSystem(this);
@@ -108,10 +175,16 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setScroll(0, 0);
 
     const initialSnapshot = this.scoreTracker.getSnapshot();
-    this.hud.update(initialSnapshot, this.bestScore, this.wallSystem.getState());
+    this.hud.update(
+      initialSnapshot,
+      this.bestScore,
+      this.wallSystem.getState(),
+      this.shieldCharges
+    );
     this.lastScoreTotal = initialSnapshot.totalScore;
     this.lastDistanceUnits = initialSnapshot.distanceUnits;
     this.showReadyPrompt();
+    this.publishQaState();
     this.input.once("pointerdown", () => this.startRun());
     window.addEventListener("keydown", this.handleReadyKeyDown, { passive: false });
 
@@ -119,6 +192,7 @@ export class GameScene extends Phaser.Scene {
       window.removeEventListener("keydown", this.handleReadyKeyDown);
       this.readyPrompt?.destroy();
       this.readyPrompt = undefined;
+      delete window.__SPIKE_ESCAPE_QA__;
       this.inputController.destroy();
     });
   }
@@ -133,27 +207,45 @@ export class GameScene extends Phaser.Scene {
       if (input.left || input.right || input.jumpPressed) {
         this.startRun();
       } else {
+        this.publishQaState();
         return;
       }
     }
 
     const elapsedMs = this.time.now - this.runStartMs;
-    this.player.update(input, elapsedMs, deltaMs);
+    if (elapsedMs > this.slowUntilMs) {
+      this.movementScale = 1;
+    }
+
+    this.player.update(input, elapsedMs, deltaMs, this.movementScale);
 
     const scoreSnapshot = this.scoreTracker.updateProgress(this.player.sprite.x);
     this.cameraAnchorX = Math.max(this.cameraAnchorX, this.player.sprite.x);
     this.segmentManager.update(this.cameraAnchorX, elapsedMs);
+    this.segmentManager.updateMagnet(
+      this.player.sprite,
+      deltaMs,
+      elapsedMs <= this.magnetUntilMs
+    );
 
     this.updateScoreFeedback(scoreSnapshot);
 
     const activeSegment = this.segmentManager.getActiveSegment(this.player.sprite.x);
-    this.updateChapterState(activeSegment.id, activeSegment.length, activeSegment.metadata.notes?.[0], activeSegment.metadata.pacingBeat ?? "build", elapsedMs);
+    this.updateChapterState(
+      activeSegment.id,
+      activeSegment.length,
+      activeSegment.metadata.notes?.[0],
+      activeSegment.metadata.pacingBeat ?? "build",
+      Math.max(0, scoreSnapshot.furthestX - PLAYER_CONFIG.startX),
+      elapsedMs
+    );
     const wallResult = this.wallSystem.update(
       deltaMs,
       elapsedMs,
       this.player.getLeftX(),
       activeSegment.allowWallSprint,
-      Boolean(activeSegment.metadata.consecutivePits)
+      Boolean(activeSegment.metadata.consecutivePits),
+      elapsedMs <= this.wallFocusUntilMs ? WALL_FOCUS_TIME_SCALE : 1
     );
 
     this.updateWallFeedback(wallResult.state);
@@ -172,7 +264,8 @@ export class GameScene extends Phaser.Scene {
       0,
       this.cameraAnchorX - WORLD_CONFIG.cameraLead
     );
-    this.hud.update(scoreSnapshot, this.bestScore, wallResult.state);
+    this.hud.update(scoreSnapshot, this.bestScore, wallResult.state, this.shieldCharges);
+    this.publishQaState();
   }
 
   private finishRun(reason: string): void {
@@ -182,6 +275,7 @@ export class GameScene extends Phaser.Scene {
 
     this.ended = true;
     const snapshot = this.scoreTracker.getSnapshot();
+    this.publishQaState(reason);
     this.bestScore = saveBestScore(
       snapshot.totalScore,
       SCORE_CONFIG.bestScoreStorageKey,
@@ -201,6 +295,30 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private handleHazardHit(reason: string): void {
+    const elapsedMs = this.time.now - this.runStartMs;
+    if (elapsedMs < this.damageImmuneUntilMs) {
+      return;
+    }
+
+    if (this.shieldCharges > 0) {
+      this.shieldCharges = 0;
+      this.damageImmuneUntilMs = elapsedMs + SHIELD_DAMAGE_GRACE_MS;
+      this.player.breakShield();
+      this.hud.update(
+        this.scoreTracker.getSnapshot(),
+        this.bestScore,
+        this.wallSystem.getState(),
+        this.shieldCharges
+      );
+      this.hud.showEventFeedback(feedbackForShieldBreak());
+      this.hud.showPulse("SHIELD POP", reason, 0x2fb9eb, 1000);
+      return;
+    }
+
+    this.finishRun(reason);
+  }
+
   private startRun(): void {
     if (!this.waitingToStart || this.ended) {
       return;
@@ -212,6 +330,31 @@ export class GameScene extends Phaser.Scene {
     this.readyPrompt?.destroy();
     this.readyPrompt = undefined;
     this.hud.showPulse("RUN 01", "Start clean. Build rhythm.", 0x54d55c, 1200);
+    this.publishQaState();
+  }
+
+  private publishQaState(deathReason?: string): void {
+    const snapshot = this.scoreTracker.getSnapshot();
+    const activeSegmentId = this.segmentManager.getActiveSegment(this.player.sprite.x).id;
+
+    window.__SPIKE_ESCAPE_QA__ = {
+      scene: "GameScene",
+      waitingToStart: this.waitingToStart,
+      ended: this.ended,
+      playerX: Math.round(this.player.sprite.x),
+      playerY: Math.round(this.player.sprite.y),
+      score: snapshot.totalScore,
+      distanceUnits: snapshot.distanceUnits,
+      activeSegmentId,
+      wallState: this.wallSystem.getState(),
+      shieldCharges: this.shieldCharges,
+      magnetActive: this.time.now - this.runStartMs <= this.magnetUntilMs,
+      wallFocusActive: this.time.now - this.runStartMs <= this.wallFocusUntilMs,
+      stompCount: this.stompCount,
+      playerHeadKey: this.player.getHeadKey(),
+      movementScale: this.movementScale,
+      deathReason
+    };
   }
 
   private updateScoreFeedback(snapshot: ScoreSnapshot): void {
@@ -238,33 +381,127 @@ export class GameScene extends Phaser.Scene {
     this.lastDistanceUnits = snapshot.distanceUnits;
   }
 
+  private showCoinFeedback(type: "normal" | "risk"): void {
+    this.player.flashCollectHead();
+    this.hud.showEventFeedback(feedbackForCoin(type));
+  }
+
+  private collectPickup(kind: PickupKind): void {
+    if (kind === "bubble-shield") {
+      this.shieldCharges = 1;
+      this.player.setShielded(true);
+      this.hud.update(
+        this.scoreTracker.getSnapshot(),
+        this.bestScore,
+        this.wallSystem.getState(),
+        this.shieldCharges
+      );
+      this.hud.showEventFeedback({
+        title: "BUBBLE HAT",
+        detail: "Blocks one trap or enemy hit",
+        accent: 0x2fb9eb,
+        iconKey: "bubble-shield",
+        durationMs: 1400
+      });
+      return;
+    }
+
+    if (kind === "magnet") {
+      const elapsedMs = this.time.now - this.runStartMs;
+      this.magnetUntilMs = Math.max(this.magnetUntilMs, elapsedMs + MAGNET_DURATION_MS);
+      this.hud.showEventFeedback({
+        title: "MAGNET STAR",
+        detail: "Nearby seeds drift toward you",
+        accent: 0xffcf74,
+        iconKey: "magnet-star",
+        durationMs: 1400
+      });
+      this.hud.showPulse("MAGNET", "Seeds bend toward your path.", 0xffcf74, 1200);
+      return;
+    }
+
+    if (kind === "clock-spore") {
+      const elapsedMs = this.time.now - this.runStartMs;
+      this.wallFocusUntilMs = Math.max(
+        this.wallFocusUntilMs,
+        elapsedMs + WALL_FOCUS_DURATION_MS
+      );
+      this.hud.showEventFeedback({
+        title: "CLOCK SPORE",
+        detail: "Spike wall pressure slows briefly",
+        accent: 0x8ed8ff,
+        iconKey: "stopwatch",
+        durationMs: 1400
+      });
+      this.hud.showPulse("CLOCK SPORE", "The wall loses tempo.", 0x8ed8ff, 1200);
+      return;
+    }
+
+    this.hud.showPulse("PICKUP", kind.replace(/-/g, " ").toUpperCase(), 0xffcf74, 1100);
+  }
+
+  private showStompFeedback(): void {
+    this.stompCount += 1;
+    this.hud.showEventFeedback(feedbackForStomp());
+  }
+
+  private applySlow(speedFactor: number, durationMs: number): void {
+    const safeSpeedFactor = Phaser.Math.Clamp(speedFactor, 0.25, 1);
+    const safeDurationMs = Math.max(120, durationMs);
+    const elapsedMs = this.time.now - this.runStartMs;
+
+    this.movementScale = Math.min(this.movementScale, safeSpeedFactor);
+    this.slowUntilMs = Math.max(this.slowUntilMs, elapsedMs + safeDurationMs);
+    if (elapsedMs - this.lastSlowFeedbackAtMs > 650) {
+      this.lastSlowFeedbackAtMs = elapsedMs;
+      this.hud.showEventFeedback(feedbackForSlow());
+    }
+  }
+
   private updateChapterState(
     segmentId: string,
     segmentLength: number,
     note: string | undefined,
     pacingBeat: string,
+    mapDistancePx: number,
     elapsedMs: number
   ): void {
-    if (segmentId === this.lastSegmentId) {
+    const stage = progressionStageForDistance(mapDistancePx);
+    const stageChanged = stage.key !== this.lastStageKey;
+
+    if (segmentId === this.lastSegmentId && !stageChanged) {
       return;
     }
 
     this.lastSegmentId = segmentId;
-    const chapterIndex = this.lastProgressBand + 2;
-    const title = `RUN ${String(chapterIndex).padStart(2, "0")}`;
-    this.lastChapterLabel = title;
+    this.lastStageKey = stage.key;
+    const title = stage.chapterLabel;
+    this.lastChapterLabel = stage.chapterLabel;
     this.lastBeatLabel = pacingBeat.toUpperCase();
-    const detailParts = [this.lastBeatLabel, this.friendlySegmentName(segmentId), note].filter(Boolean);
+    const detailParts = [
+      stage.title,
+      this.lastBeatLabel,
+      this.friendlySegmentName(segmentId),
+      note
+    ].filter(Boolean);
     this.hud.setChapterProgress(title, detailParts.join(" · "));
-    if (elapsedMs - this.lastChapterBannerAtMs > 1200) {
+    if (stageChanged || elapsedMs - this.lastChapterBannerAtMs > 1200) {
       this.lastChapterBannerAtMs = elapsedMs;
-      this.hud.showPulse(
-        title,
-        `${this.lastBeatLabel} · ${this.friendlySegmentName(segmentId)} · ${Math.ceil(segmentLength / 32)} tiles`,
-        0x8ed8ff,
-        1300
-      );
+      this.showChapterPulse(stage, segmentId, segmentLength);
     }
+  }
+
+  private showChapterPulse(
+    stage: ProgressionStage,
+    segmentId: string,
+    segmentLength: number
+  ): void {
+    this.hud.showPulse(
+      `${stage.chapterLabel} · ${stage.title}`,
+      `${stage.detail} · ${this.friendlySegmentName(segmentId)} · ${Math.ceil(segmentLength / 32)} tiles`,
+      stage.accent,
+      1300
+    );
   }
 
   private updateWallFeedback(state: WallState): void {
@@ -296,7 +533,8 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDisplaySize(VIEWPORT.width, VIEWPORT.height)
       .setScrollFactor(0)
-      .setAlpha(0.42)
+      .setTint(0x0b140b)
+      .setAlpha(0.22)
       .setDepth(0);
 
     this.add
@@ -304,7 +542,8 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDisplaySize(VIEWPORT.width, VIEWPORT.height)
       .setScrollFactor(0)
-      .setAlpha(0.3)
+      .setTint(0x164016)
+      .setAlpha(0.24)
       .setDepth(0);
 
     this.add.rectangle(
@@ -312,7 +551,7 @@ export class GameScene extends Phaser.Scene {
       0,
       worldWidth,
       VIEWPORT.height,
-      0x8ed8ff
+      0x050906
     ).setOrigin(0, 0);
 
     this.add
@@ -320,29 +559,29 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0.04)
       .setDepth(1);
     this.add
-      .ellipse(770, 88, 160, 160, 0xfff8d8, 0.26)
+      .ellipse(770, 88, 160, 160, 0xa4cd00, 0.16)
       .setScrollFactor(0.02)
       .setDepth(1);
 
     this.add
-      .ellipse(190, 92, 120, 34, 0xffffff, 0.88)
+      .ellipse(190, 92, 120, 34, 0xf7efc8, 0.28)
       .setScrollFactor(0.03)
       .setDepth(1);
     this.add
-      .ellipse(210, 80, 64, 28, 0xffffff, 0.9)
+      .ellipse(210, 80, 64, 28, 0xf7efc8, 0.24)
       .setScrollFactor(0.03)
       .setDepth(1);
     this.add
-      .ellipse(616, 74, 106, 32, 0xffffff, 0.84)
+      .ellipse(616, 74, 106, 32, 0xf7efc8, 0.22)
       .setScrollFactor(0.03)
       .setDepth(1);
 
     this.add
-      .rectangle(0, 372, worldWidth, 116, 0x82be87, 0.48)
+      .rectangle(0, 372, worldWidth, 116, 0x063d12, 0.54)
       .setOrigin(0, 0)
       .setDepth(2);
     this.add
-      .rectangle(0, 404, worldWidth, 96, 0x6fab72, 0.44)
+      .rectangle(0, 404, worldWidth, 96, 0x08280f, 0.62)
       .setOrigin(0, 0)
       .setDepth(2);
 
@@ -373,11 +612,11 @@ export class GameScene extends Phaser.Scene {
     const compact = this.scale.width < 500;
     if (compact) {
       this.addTutorialCard(16, VIEWPORT.height - 94, 192, "tutorial-left-right", "MOVE", "LEFT / RIGHT", 0xffd76c);
-      this.addTutorialCard(240, VIEWPORT.height - 94, 192, "tutorial-jump", "JUMP", "HOLD + SPACE", 0x9de7ff);
+      this.addTutorialCard(240, VIEWPORT.height - 94, 192, "tutorial-jump", "JUMP", "TAP / HOLD", 0x9de7ff);
       this.addTutorialCard(464, VIEWPORT.height - 94, 192, "tutorial-hazard", "DANGER", "SPIKES / WALL", 0xff9d82);
     } else {
       this.addTutorialCard(20, VIEWPORT.height - 68, 296, "tutorial-left-right", "MOVE", "LEFT / RIGHT", 0xffd76c);
-      this.addTutorialCard(332, VIEWPORT.height - 68, 296, "tutorial-jump", "JUMP", "HOLD + SPACE", 0x9de7ff);
+      this.addTutorialCard(332, VIEWPORT.height - 68, 296, "tutorial-jump", "JUMP", "TAP LOW / HOLD HIGH", 0x9de7ff);
       this.addTutorialCard(644, VIEWPORT.height - 68, 296, "tutorial-hazard", "DANGER", "SPIKES / WALL", 0xff9d82);
     }
   }
@@ -405,7 +644,7 @@ export class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     const controls = this.add
-      .text(0, 48, "Hold left/right, then jump with Space/W/Up", {
+      .text(0, 48, "Tap jump for low hops. Hold jump for full height.", {
         align: "center",
         fontFamily: "Trebuchet MS, Avenir Next, sans-serif",
         fontSize: "14px",

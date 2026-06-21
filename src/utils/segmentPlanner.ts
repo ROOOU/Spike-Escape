@@ -10,13 +10,13 @@ const PACE_ORDER: PaceTier[] = ["onboarding", "early", "mid", "late"];
 const INTENSE_ROLES = new Set<SegmentRole>(["hazard", "precision", "gauntlet"]);
 const COOLING_PRESSURES = new Set<PressureLevel>(["low", "recovery"]);
 const ACT_PATTERN = ["build", "reward", "pressure", "recovery", "build", "climax"] as const;
+const MAX_REPEAT_THEME = 4;
 
 type PacingBeat = NonNullable<SegmentDefinition["metadata"]["pacingBeat"]>;
 
 export interface SegmentPlanState {
   generatedCount: number;
-  progressAnchorX: number;
-  elapsedMs: number;
+  mapDistancePx: number;
   recent: SegmentDefinition[];
 }
 
@@ -28,21 +28,35 @@ function isIntenseSegment(segment: SegmentDefinition): boolean {
   return segment.pressure === "high" || INTENSE_ROLES.has(segment.role) || countRiskCoins(segment) > 0;
 }
 
-function difficultyCap(progressAnchorX: number, elapsedMs: number): number {
-  return Math.min(
-    3,
-    Math.max(1, 1 + Math.floor(progressAnchorX / 2400), 1 + Math.floor(elapsedMs / 20000))
-  );
+export function segmentUnlockDistancePx(segment: SegmentDefinition): number {
+  return segment.metadata.unlockDistancePx ?? 0;
 }
 
-function paceCap(progressAnchorX: number, elapsedMs: number): PaceTier {
-  const score = Math.max(progressAnchorX / 2600, elapsedMs / 22000);
+export function isSegmentUnlockedByDistance(
+  segment: SegmentDefinition,
+  mapDistancePx: number
+): boolean {
+  return segmentUnlockDistancePx(segment) <= mapDistancePx;
+}
 
-  if (score < 1.3) {
+function difficultyCap(mapDistancePx: number): number {
+  if (mapDistancePx < 3200) {
+    return 1;
+  }
+
+  if (mapDistancePx < 6400) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function paceCap(mapDistancePx: number): PaceTier {
+  if (mapDistancePx < 3200) {
     return "early";
   }
 
-  if (score < 3.4) {
+  if (mapDistancePx < 7200) {
     return "mid";
   }
 
@@ -59,12 +73,12 @@ function introSequence(): SegmentDefinition[] {
     .sort((a, b) => (a.metadata.introOrder ?? 0) - (b.metadata.introOrder ?? 0));
 }
 
-function chapterCap(progressAnchorX: number, elapsedMs: number): number {
-  if (progressAnchorX < 3200 && elapsedMs < 28000) {
+function chapterCap(mapDistancePx: number): number {
+  if (mapDistancePx < 3200) {
     return 1;
   }
 
-  if (progressAnchorX < 7200 && elapsedMs < 60000) {
+  if (mapDistancePx < 7200) {
     return 2;
   }
 
@@ -166,6 +180,24 @@ function applyRecentConstraints(
     }
   }
 
+  const recentTheme = last.metadata.themeTag;
+  if (recentTheme) {
+    const repeatedThemeCount = [...recent]
+      .reverse()
+      .findIndex((segment) => segment.metadata.themeTag !== recentTheme);
+    const consecutiveThemeCount =
+      repeatedThemeCount === -1 ? recent.length : repeatedThemeCount;
+
+    if (consecutiveThemeCount >= MAX_REPEAT_THEME) {
+      const alternateThemeCandidates = next.filter(
+        (segment) => segment.metadata.themeTag !== recentTheme
+      );
+      if (alternateThemeCandidates.length > 0) {
+        next = alternateThemeCandidates;
+      }
+    }
+  }
+
   return next;
 }
 
@@ -200,16 +232,27 @@ export function pickPlannedSegment(
 ): SegmentDefinition {
   const intro = introSequence();
   if (state.generatedCount < intro.length) {
-    return intro[state.generatedCount];
+    const authoredIntro = intro[state.generatedCount];
+    if (isSegmentUnlockedByDistance(authoredIntro, state.mapDistancePx)) {
+      return authoredIntro;
+    }
+
+    const unlockedIntro = intro.find((segment) =>
+      isSegmentUnlockedByDistance(segment, state.mapDistancePx)
+    );
+    return unlockedIntro ?? intro[0];
   }
 
-  const cap = difficultyCap(state.progressAnchorX, state.elapsedMs);
-  const pace = paceCap(state.progressAnchorX, state.elapsedMs);
-  const chapter = chapterCap(state.progressAnchorX, state.elapsedMs);
+  const cap = difficultyCap(state.mapDistancePx);
+  const pace = paceCap(state.mapDistancePx);
+  const chapter = chapterCap(state.mapDistancePx);
   const beat = targetBeat(state.generatedCount);
 
   let candidates = SEGMENT_CATALOG.filter(
-    (segment) => segment.difficulty <= cap && allowsTier(segment, pace)
+    (segment) =>
+      segment.difficulty <= cap &&
+      allowsTier(segment, pace) &&
+      isSegmentUnlockedByDistance(segment, state.mapDistancePx)
   );
 
   candidates = preferChapter(candidates, chapter);
@@ -218,7 +261,10 @@ export function pickPlannedSegment(
 
   if (candidates.length === 0) {
     candidates = SEGMENT_CATALOG.filter(
-      (segment) => segment.difficulty <= cap && allowsTier(segment, pace)
+      (segment) =>
+        segment.difficulty <= cap &&
+        allowsTier(segment, pace) &&
+        isSegmentUnlockedByDistance(segment, state.mapDistancePx)
     );
   }
 

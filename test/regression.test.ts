@@ -30,6 +30,19 @@ function collectFiles(targetPath: string): string[] {
     .flatMap((entry) => collectFiles(path.join(targetPath, entry)));
 }
 
+function readPngSize(file: string): { width: number; height: number } | undefined {
+  const buffer = fs.readFileSync(file);
+  const pngSignature = "89504e470d0a1a0a";
+  if (buffer.subarray(0, 8).toString("hex") !== pngSignature) {
+    return undefined;
+  }
+
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20)
+  };
+}
+
 describe("regression scan", () => {
   it("keeps legacy naming out of shipped docs and UI files", () => {
     const files = SHIPPED_PATHS.flatMap(collectFiles);
@@ -53,8 +66,24 @@ describe("regression scan", () => {
       "utf8"
     );
 
-    expect(controller).not.toContain(".setScale(");
-    expect(controller).not.toMatch(/\bscaleX\s*:/);
-    expect(controller).not.toMatch(/\bscaleY\s*:/);
+    expect(controller).toContain("readonly visual");
+    expect(controller).not.toMatch(/this\.sprite\.setScale\(/);
+    expect(controller).not.toMatch(/targets:\s*this\.sprite/);
+  });
+
+  it("keeps concept sheets out of shipped public assets", () => {
+    const publicFiles = collectFiles("public");
+    const pngSheets = publicFiles
+      .filter((file) => file.endsWith(".png"))
+      .map((file) => ({
+        file: path.relative(ROOT, file),
+        size: readPngSize(file)
+      }))
+      .filter(({ file, size }) =>
+        file.includes("ChatGPT Image") ||
+        (size?.width === 1448 && size.height === 1086)
+      );
+
+    expect(pngSheets).toEqual([]);
   });
 });

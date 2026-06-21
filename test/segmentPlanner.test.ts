@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { SEGMENT_CATALOG } from "../src/config/segments";
-import { describePlannedBeat, pickPlannedSegment } from "../src/utils/segmentPlanner";
+import { PLAYER_CONFIG } from "../src/config/playerConfig";
+import { SEGMENT_CATALOG, START_SEGMENT } from "../src/config/segments";
+import { ScoreTracker } from "../src/systems/scoreTracker";
+import {
+  describePlannedBeat,
+  isSegmentUnlockedByDistance,
+  pickPlannedSegment
+} from "../src/utils/segmentPlanner";
 
 function byId(id: string) {
   const segment = SEGMENT_CATALOG.find((entry) => entry.id === id);
@@ -16,8 +22,7 @@ describe("pickPlannedSegment", () => {
     const picks = Array.from({ length: 6 }, (_, generatedCount) =>
       pickPlannedSegment({
         generatedCount,
-        progressAnchorX: 0,
-        elapsedMs: 0,
+        mapDistancePx: 9999,
         recent: []
       }).id
     );
@@ -45,8 +50,7 @@ describe("pickPlannedSegment", () => {
     const picked = pickPlannedSegment(
       {
         generatedCount: 7,
-        progressAnchorX: 3600,
-        elapsedMs: 26000,
+        mapDistancePx: 7200,
         recent: [byId("wall-sprint-window"), byId("safe-runway")]
       },
       () => 0
@@ -59,8 +63,7 @@ describe("pickPlannedSegment", () => {
     const picked = pickPlannedSegment(
       {
         generatedCount: 9,
-        progressAnchorX: 7200,
-        elapsedMs: 48000,
+        mapDistancePx: 22000,
         recent: [byId("spike-bridge"), byId("mixed-pressure")]
       },
       () => 0
@@ -73,8 +76,7 @@ describe("pickPlannedSegment", () => {
     const picked = pickPlannedSegment(
       {
         generatedCount: 8,
-        progressAnchorX: 7000,
-        elapsedMs: 45000,
+        mapDistancePx: 22000,
         recent: [byId("narrow-landing"), byId("mixed-pressure")]
       },
       () => 0
@@ -87,13 +89,66 @@ describe("pickPlannedSegment", () => {
     const picked = pickPlannedSegment(
       {
         generatedCount: 8,
-        progressAnchorX: 7000,
-        elapsedMs: 45000,
+        mapDistancePx: 22000,
         recent: [byId("safe-runway"), byId("risk-ribbon")]
       },
       () => 0
     );
 
     expect(picked.id).not.toBe("risk-ribbon");
+  });
+
+  it("unlocks hazard families only from map distance thresholds", () => {
+    expect(isSegmentUnlockedByDistance(byId("safe-runway"), 799)).toBe(false);
+    expect(isSegmentUnlockedByDistance(byId("safe-runway"), 800)).toBe(true);
+    expect(isSegmentUnlockedByDistance(byId("spike-garden-intro"), 3199)).toBe(false);
+    expect(isSegmentUnlockedByDistance(byId("spike-garden-intro"), 3200)).toBe(true);
+    expect(isSegmentUnlockedByDistance(byId("spike-bridge"), 6399)).toBe(false);
+    expect(isSegmentUnlockedByDistance(byId("spike-bridge"), 6400)).toBe(true);
+    expect(isSegmentUnlockedByDistance(byId("vertical-patrol-intro"), 8999)).toBe(false);
+    expect(isSegmentUnlockedByDistance(byId("vertical-patrol-intro"), 9000)).toBe(true);
+    expect(isSegmentUnlockedByDistance(byId("crusher-intro"), 10999)).toBe(false);
+    expect(isSegmentUnlockedByDistance(byId("crusher-intro"), 11000)).toBe(true);
+  });
+
+  it("does not use score or elapsed time to unlock hazard segments", () => {
+    const scoreTracker = new ScoreTracker(PLAYER_CONFIG.startX);
+    for (let index = 0; index < 20; index += 1) {
+      scoreTracker.collectCoin("risk");
+    }
+
+    expect(scoreTracker.getSnapshot().totalScore).toBeGreaterThan(5000);
+
+    const picked = pickPlannedSegment(
+      {
+        generatedCount: 12,
+        mapDistancePx: 2000,
+        recent: []
+      },
+      () => 0.99
+    );
+
+    expect(picked.hazards.every((hazard) => hazard.kind === "spike")).toBe(true);
+    expect(picked.coins.every((coin) => coin.type === "normal")).toBe(true);
+  });
+
+  it("places the first static trap around DIST 30-40", () => {
+    const firstTrapSegment = pickPlannedSegment(
+      {
+        generatedCount: 0,
+        mapDistancePx: START_SEGMENT.length - PLAYER_CONFIG.startX,
+        recent: []
+      },
+      () => 0.99
+    );
+    const firstTrap = firstTrapSegment.hazards[0];
+    const trapDistancePx = START_SEGMENT.length + firstTrap.x - PLAYER_CONFIG.startX;
+
+    expect(firstTrapSegment.id).toBe("safe-runway");
+    expect(firstTrap.kind).toBe("spike");
+    expect(firstTrapSegment.hazards).toHaveLength(1);
+    expect(firstTrapSegment.enemies ?? []).toHaveLength(0);
+    expect(Math.floor(trapDistancePx / 32)).toBeGreaterThanOrEqual(30);
+    expect(Math.floor(trapDistancePx / 32)).toBeLessThanOrEqual(40);
   });
 });

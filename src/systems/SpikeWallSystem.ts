@@ -5,6 +5,7 @@ import { WALL_CONFIG } from "../config/wallConfig";
 import {
   SpikeWallMachine,
   isWallCollision,
+  resolveWallAdvance,
   type WallState
 } from "./wallMachine";
 
@@ -17,6 +18,7 @@ export class SpikeWallSystem {
   private readonly machine = new SpikeWallMachine();
   private readonly wall: Phaser.GameObjects.TileSprite;
   private frontX = PLAYER_CONFIG.startX - WALL_CONFIG.initialOffset;
+  private lastPlayerLeftX?: number;
 
   constructor(scene: Phaser.Scene) {
     this.wall = scene.add
@@ -36,17 +38,31 @@ export class SpikeWallSystem {
     elapsedMs: number,
     playerLeftX: number,
     allowSprint: boolean,
-    consecutivePits: boolean
+    consecutivePits: boolean,
+    timeScale = 1
   ): WallUpdateResult {
-    const state = this.machine.tick(deltaMs, {
+    const safeTimeScale = Phaser.Math.Clamp(timeScale, 0.25, 1);
+    const scaledDeltaMs = deltaMs * safeTimeScale;
+    const gapToPlayer = playerLeftX - this.frontX;
+    const playerProgressDeltaPx =
+      this.lastPlayerLeftX === undefined
+        ? 0
+        : playerLeftX - this.lastPlayerLeftX;
+    this.lastPlayerLeftX = playerLeftX;
+
+    const state = this.machine.tick(scaledDeltaMs, {
       elapsedMs,
       allowSprint,
       consecutivePits,
-      gapToPlayer: playerLeftX - this.frontX
+      gapToPlayer,
+      playerProgressDeltaPx
     });
 
     const speed = this.machine.getSpeed(WALL_CONFIG.baseAdvanceSpeed);
-    this.frontX += speed * (deltaMs / 1000);
+    this.frontX += resolveWallAdvance(speed, scaledDeltaMs, {
+      elapsedMs,
+      gapToPlayer
+    });
     this.wall.x = this.frontX - WALL_CONFIG.width;
 
     if (state === "warning") {
@@ -56,7 +72,7 @@ export class SpikeWallSystem {
     }
 
     this.wall.y = state === "sprint" ? Phaser.Math.Between(-2, 2) : 0;
-    this.wall.tilePositionY += state === "sprint" ? 6 : 2;
+    this.wall.tilePositionY += (state === "sprint" ? 6 : 2) * safeTimeScale;
 
     return {
       collided: isWallCollision(this.frontX, playerLeftX),

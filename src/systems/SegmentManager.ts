@@ -1,11 +1,15 @@
 import * as Phaser from "phaser";
 import { SEGMENT_CATALOG, START_SEGMENT } from "../config/segments";
 import { WORLD_CONFIG } from "../config/gameConfig";
+import { PLAYER_CONFIG } from "../config/playerConfig";
 import { pickPlannedSegment } from "../utils/segmentPlanner";
 import { assertValidSegments } from "../utils/segmentValidator";
 import type { SegmentDefinition } from "../types/segments";
 import { CoinManager } from "./CoinManager";
+import { EnemyManager } from "./EnemyManager";
 import { HazardManager } from "./HazardManager";
+import { PickupManager } from "./PickupManager";
+import type { PickupKind } from "../types/segments";
 
 interface SpawnedSegment {
   definition: SegmentDefinition;
@@ -20,6 +24,8 @@ export class SegmentManager {
 
   private readonly segments: SpawnedSegment[] = [];
   private readonly coinManager: CoinManager;
+  private readonly pickupManager: PickupManager;
+  private readonly enemyManager: EnemyManager;
   private readonly hazardManager: HazardManager;
   private spawnCursorX = 0;
   private generatedCount = 0;
@@ -28,6 +34,8 @@ export class SegmentManager {
     assertValidSegments([START_SEGMENT, ...SEGMENT_CATALOG]);
     this.platformGroup = scene.physics.add.staticGroup();
     this.coinManager = new CoinManager(scene);
+    this.pickupManager = new PickupManager(scene);
+    this.enemyManager = new EnemyManager(scene);
     this.hazardManager = new HazardManager(scene);
   }
 
@@ -36,25 +44,34 @@ export class SegmentManager {
     this.spawnCursorX = START_SEGMENT.length;
 
     while (this.spawnCursorX < WORLD_CONFIG.spawnAheadDistance) {
-      this.spawnNext(0, 0);
+      this.spawnNext();
     }
   }
 
   attachRuntimeColliders(
     player: Phaser.Physics.Arcade.Sprite,
     onCoin: (type: "normal" | "risk") => void,
-    onHazard: (reason: string) => void
+    onPickup: (kind: PickupKind) => void,
+    onHazard: (reason: string) => void,
+    onStomp?: () => void,
+    onSlow?: (speedFactor: number, durationMs: number) => void
   ): void {
     this.scene.physics.add.collider(player, this.platformGroup);
     this.coinManager.attachCollector(player, onCoin);
+    this.pickupManager.attachCollector(player, onPickup);
+    this.enemyManager.attachListener(player, onHazard, onStomp);
     this.hazardManager.attachListener(player, onHazard);
+    if (onSlow) {
+      this.hazardManager.attachSoftListener(player, onSlow);
+    }
   }
 
   update(progressAnchorX: number, elapsedMs: number): void {
+    this.enemyManager.update(elapsedMs);
     this.hazardManager.update(elapsedMs);
 
     while (this.spawnCursorX < progressAnchorX + WORLD_CONFIG.spawnAheadDistance) {
-      this.spawnNext(progressAnchorX, elapsedMs);
+      this.spawnNext();
     }
 
     while (
@@ -66,9 +83,19 @@ export class SegmentManager {
         segment.platforms.forEach((platform) => platform.destroy());
         segment.decor.forEach((item) => item.destroy());
         this.coinManager.destroySegment(segment.definition.id + ":" + segment.startX);
+        this.pickupManager.destroySegment(segment.definition.id + ":" + segment.startX);
+        this.enemyManager.destroySegment(segment.definition.id + ":" + segment.startX);
         this.hazardManager.destroySegment(segment.definition.id + ":" + segment.startX);
       }
     }
+  }
+
+  updateMagnet(
+    player: Phaser.Physics.Arcade.Sprite,
+    deltaMs: number,
+    active: boolean
+  ): void {
+    this.coinManager.updateMagnet(player, deltaMs, active);
   }
 
   getActiveSegment(playerX: number): SegmentDefinition {
@@ -81,8 +108,8 @@ export class SegmentManager {
     return this.segments[this.segments.length - 1]?.definition ?? START_SEGMENT;
   }
 
-  private spawnNext(progressAnchorX: number, elapsedMs: number): void {
-    const definition = this.pickNextSegment(progressAnchorX, elapsedMs);
+  private spawnNext(): void {
+    const definition = this.pickNextSegment();
     this.spawnSegment(this.spawnCursorX, definition);
     this.spawnCursorX += definition.length;
     this.generatedCount += 1;
@@ -106,6 +133,8 @@ export class SegmentManager {
     const decor = this.spawnDecor(startX, definition);
 
     this.coinManager.spawn(segmentId, startX, definition.coins);
+    this.pickupManager.spawn(segmentId, startX, definition.pickups ?? []);
+    this.enemyManager.spawn(segmentId, startX, definition.enemies ?? []);
     this.hazardManager.spawn(segmentId, startX, definition.hazards);
 
     this.segments.push({
@@ -117,11 +146,10 @@ export class SegmentManager {
     });
   }
 
-  private pickNextSegment(progressAnchorX: number, elapsedMs: number): SegmentDefinition {
+  private pickNextSegment(): SegmentDefinition {
     return pickPlannedSegment({
       generatedCount: this.generatedCount,
-      progressAnchorX,
-      elapsedMs,
+      mapDistancePx: Math.max(0, this.spawnCursorX - PLAYER_CONFIG.startX),
       recent: this.segments.slice(-2).map((segment) => segment.definition)
     });
   }
@@ -152,7 +180,7 @@ export class SegmentManager {
         platform.x + platform.width - 18
       );
 
-      const texture = (startX + platform.x + index) % 2 === 0 ? "flower" : "grass-tuft";
+      const texture = this.decorTexture(startX, platform.x, index);
       const sprite = this.scene.add
         .image(startX + localX, platform.y - 2, texture)
         .setOrigin(0.5, 1)
@@ -165,5 +193,14 @@ export class SegmentManager {
     }
 
     return decor;
+  }
+
+  private decorTexture(startX: number, platformX: number, index: number): string {
+    const textures = ["flower-red", "flower-blue", "shrub", "grass-tuft", "flower"];
+    const decorIndex =
+      Math.abs(Math.floor(startX / 32) + Math.floor(platformX / 16) + index * 3) %
+      textures.length;
+
+    return textures[decorIndex];
   }
 }

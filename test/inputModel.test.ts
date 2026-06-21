@@ -116,4 +116,32 @@ describe("inputModel", () => {
     expect(binder.read().jump).toBe(false);
     binder.destroy();
   });
+
+  it("supports mouse and click fallback for touch controls", () => {
+    document.body.innerHTML = `
+      <div id="touch-controls">
+        <button data-action="jump" type="button">Jump</button>
+      </div>
+    `;
+
+    const root = document.getElementById("touch-controls");
+    const binder = createTouchBinder(root);
+    const jumpButton = root?.querySelector<HTMLButtonElement>("[data-action='jump']");
+
+    jumpButton?.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+    expect(binder.read().jump).toBe(true);
+    expect(binder.read().jump).toBe(false);
+
+    jumpButton?.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
+    expect(binder.read().jump).toBe(true);
+    expect(jumpButton?.dataset.active).toBe("true");
+
+    jumpButton?.dispatchEvent(new Event("mouseup", { bubbles: true, cancelable: true }));
+    expect(binder.read().jump).toBe(false);
+    expect(jumpButton?.dataset.active).toBe("false");
+
+    jumpButton?.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+    expect(binder.read().jump).toBe(false);
+    binder.destroy();
+  });
 });

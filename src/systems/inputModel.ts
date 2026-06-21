@@ -153,6 +153,7 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
     }
 
     const pointerSet = new Set<number>();
+    let lastPressAtMs = Number.NEGATIVE_INFINITY;
     activePointers.set(button, pointerSet);
 
     const refresh = (): void => {
@@ -162,6 +163,7 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
 
     const onPress = (event: Event): void => {
       event.preventDefault();
+      lastPressAtMs = Date.now();
       pointerSet.add(pointerIdOf(event));
       queuedState[action] = true;
       refresh();
@@ -172,11 +174,25 @@ export function createTouchBinder(root: HTMLElement | null): TouchBinder {
       refresh();
     };
 
+    const onTapFallback = (event: Event): void => {
+      event.preventDefault();
+      if (Date.now() - lastPressAtMs > 250) {
+        queuedState[action] = true;
+      }
+    };
+
     const events: Array<[string, (event: Event) => void]> = [
       ["pointerdown", onPress],
       ["pointerup", onRelease],
       ["pointercancel", onRelease],
-      ["pointerleave", onRelease]
+      ["pointerleave", onRelease],
+      ["mousedown", onPress],
+      ["mouseup", onRelease],
+      ["mouseleave", onRelease],
+      ["touchstart", onPress],
+      ["touchend", onRelease],
+      ["touchcancel", onRelease],
+      ["click", onTapFallback]
     ];
 
     events.forEach(([eventName, handler]) => {
